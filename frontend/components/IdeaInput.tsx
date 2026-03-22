@@ -42,7 +42,7 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
           }}
           placeholder="描述你的创业想法，越详细越好..."
           className={`
-            w-full h-32 px-4 py-4 bg-white rounded-2xl
+            w-full h-24 sm:h-32 px-4 py-4 bg-[var(--bg-1)] rounded-2xl
             text-text-primary placeholder-text-muted resize-none
             focus:outline-none text-sm leading-relaxed
             transition-all duration-200 border
@@ -92,7 +92,7 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
               whileTap={{ scale: 0.98 }}
               onClick={() => setIdea(example)}
               className="text-left text-[13px] px-4 py-2.5 rounded-xl
-                bg-white text-text-secondary hover:text-text-primary
+                bg-[var(--bg-1)] text-text-secondary hover:text-text-primary
                 border border-border hover:border-border-hover
                 shadow-sm hover:shadow-md
                 transition-all truncate cursor-pointer"

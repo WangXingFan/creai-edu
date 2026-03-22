@@ -1,4 +1,5 @@
 """Debate REST API routes."""
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -97,3 +98,44 @@ async def delete_debate(
     await session.delete(debate)
     await session.commit()
     return {"message": "Debate deleted"}
+
+
+@router.post("/debate/{debate_id}/share")
+async def create_share_link(
+    debate_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Generate a share token for a completed debate."""
+    result = await session.execute(select(Debate).where(Debate.id == debate_id))
+    debate = result.scalar_one_or_none()
+    if not debate:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    if debate.status != DebateStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Debate not yet completed")
+
+    if not debate.share_token:
+        debate.share_token = uuid.uuid4().hex[:12]
+        await session.commit()
+
+    return {"share_token": debate.share_token}
+
+
+@router.get("/share/{token}")
+async def get_shared_report(
+    token: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Get a debate report via share token (public, no auth)."""
+    result = await session.execute(
+        select(Debate).where(Debate.share_token == token)
+    )
+    debate = result.scalar_one_or_none()
+    if not debate:
+        raise HTTPException(status_code=404, detail="Share link not found")
+    return {
+        "debate_id": debate.id,
+        "idea": debate.idea,
+        "report": debate.report,
+        "final_scores": debate.final_scores,
+        "completed_at": debate.completed_at,
+    }

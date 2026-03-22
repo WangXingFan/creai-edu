@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { formatBeijingTime } from "@/lib/datetime";
+import { SkeletonCard } from "@/components/Skeleton";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface DebateItem {
   id: string;
@@ -121,14 +123,16 @@ export default function HistoryPage() {
               {debates.length}
             </span>
           )}
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-accent/6 border border-accent/12 mb-4">
-              <Loader2 className="h-5 w-5 text-accent animate-spin" />
-            </div>
-            <p className="text-text-muted text-sm">加载中...</p>
+          <div className="space-y-2.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         ) : debates.length === 0 ? (
           <div className="text-center py-20 card p-8">
@@ -169,7 +173,7 @@ export default function HistoryPage() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="absolute inset-0 z-10 flex items-center justify-center gap-3 rounded-2xl bg-white/95 backdrop-blur-sm border border-danger/20"
+                          className="absolute inset-0 z-10 flex items-center justify-center gap-3 rounded-2xl bg-[var(--bg-1)]/95 backdrop-blur-sm border border-danger/20"
                         >
                           <span className="text-sm text-text-secondary">确认删除？</span>
                           <button

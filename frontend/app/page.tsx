@@ -11,6 +11,7 @@ import {
   CompetitorAvatar,
 } from "@/components/AgentAvatars";
 import IdeaInput from "@/components/IdeaInput";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AGENTS = [
   {
@@ -68,6 +69,11 @@ export default function HomePage() {
       <div className="arena-bg" />
       <div className="arena-glow-secondary" />
 
+      {/* Theme toggle */}
+      <div className="fixed top-4 right-4 z-30">
+        <ThemeToggle />
+      </div>
+
       <div className="relative z-10 w-full max-w-2xl">
         {/* Hero */}
         <motion.div
@@ -90,9 +96,9 @@ export default function HomePage() {
             <span className="gradient-text-hero">Startup Arena</span>
           </h1>
           <p className="text-sm sm:text-base text-text-secondary leading-relaxed max-w-lg mx-auto">
-            提交你的创业想法，4 位 AI 评审官将从商业、技术、用户、竞争
+            提交你的创业想法，4 位 AI 评审官 + 1 位 AI 主持人
             <br className="hidden sm:block" />
-            四大维度展开多轮深度辩论与评估
+            从商业、技术、用户、竞争四大维度展开多轮深度辩论与评估
           </p>
         </motion.div>
 
@@ -101,7 +107,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="grid grid-cols-4 gap-3 mb-10"
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10"
         >
           {AGENTS.map((agent, i) => (
             <motion.div

@@ -95,7 +95,13 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
                 })
                 await websocket.close()
                 return
-            # If IN_PROGRESS, just join and listen (late joiner)
+            # If IN_PROGRESS, notify client that debate is already running
+            elif status == DebateStatus.IN_PROGRESS:
+                await websocket.send_json({
+                    "type": "debate_start",
+                    "message": "Debate is in progress...",
+                    "agent_configs": get_runtime_agent_configs(),
+                })
 
         # Keep connection alive
         while True:

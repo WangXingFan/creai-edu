@@ -17,7 +17,24 @@
   --accent-end: #4D7CFF;
   --text-primary: #0F172A;
   --text-secondary: #475569;
+  --text-tertiary: #64748B;
   --text-muted: #94A3B8;
+}
+
+html.dark {
+  --bg-0: #0B0F1A;
+  --bg-1: #111827;
+  --bg-2: #1E293B;
+  --bg-3: #334155;
+  --border: #1E293B;
+  --border-hover: #334155;
+  --accent: #4D7CFF;
+  --accent-end: #7C9FFF;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #7B8DA0;
+  --text-muted: #64748B;
+  --shimmer-highlight: rgba(255,255,255,0.05);
 }
 
 /* ─────────────────────────────────────
@@ -33,7 +50,7 @@ body {
 
 ::selection {
   background: rgba(0, 82, 255, 0.15);
-  color: #0F172A;
+  color: var(--text-primary);
 }
 
 :focus-visible {
@@ -104,11 +121,11 @@ body {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: var(--bg-3);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--text-muted);
 }
 
 /* ─────────────────────────────────────
@@ -164,7 +181,7 @@ body {
    ───────────────────────────────────── */
 
 .gradient-text {
-  background: linear-gradient(135deg, #0052FF, #4D7CFF);
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -206,7 +223,7 @@ body {
    ───────────────────────────────────── */
 
 .btn-primary {
-  background: linear-gradient(135deg, #0052FF, #4D7CFF);
+  background: linear-gradient(135deg, var(--accent), var(--accent-end));
   color: #fff;
   font-weight: 600;
   border-radius: 999px;
@@ -269,7 +286,7 @@ body {
 .progress-track {
   width: 100%;
   height: 4px;
-  background: #F1F5F9;
+  background: var(--bg-2);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -351,7 +368,7 @@ body {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: #F1F5F9;
+  background: var(--bg-2);
   border-radius: 0.5rem;
 }
 
@@ -359,6 +376,6 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--shimmer-highlight, rgba(255,255,255,0.6)) 50%, transparent 100%);
   animation: shimmer 2s infinite;
 }

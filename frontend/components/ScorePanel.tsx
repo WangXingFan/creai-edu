@@ -101,7 +101,7 @@ export default function ScorePanel({ scores, currentRound, maxRounds }: ScorePan
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            style={{ background: "linear-gradient(90deg, #0052FF, #4D7CFF)" }}
+            style={{ background: "linear-gradient(90deg, var(--accent), var(--accent-end))" }}
           />
         </div>
       </div>

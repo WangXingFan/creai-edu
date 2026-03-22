@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,14 +8,24 @@ export const metadata: Metadata = {
     "多 Agent 辩论式创业想法评估系统，从商业、技术、用户、竞争四大维度深度分析",
 };
 
+const themeScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

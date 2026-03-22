@@ -9,7 +9,20 @@
 - **前端**: Next.js 14 + React + TailwindCSS + Framer Motion
 - **后端**: Python FastAPI + SQLite
 - **Agent**: LangGraph + GPT-5.4 + Claude Sonnet 4.6 + DeepSeek + Gemini + GLM
-- **部署**: Docker Compose
+- **搜索**: （开发中）Grok 实时搜索市场数据
+- **部署**: Docker Compose + GitHub Actions CI/CD
+
+## 功能特性
+
+- **多Agent辩论**: 4位AI评审官 + 1位AI主持人，多轮深度辩论
+- **实时流式输出**: WebSocket推送，逐字显示Agent发言
+- **六维雷达图**: 市场需求、商业模式、技术可行性、竞争优势、用户体验、团队契合
+- **暗色模式**: 一键切换亮/暗主题，全站适配
+- **移动端适配**: 响应式布局 + 底部抽屉评分面板
+- **报告导出**: 支持导出为 PNG 图片或 PDF 文件
+- **报告分享**: 生成公开分享链接，复制即可发送
+- **骨架屏加载**: 页面加载时显示内容占位动画
+- **断线重连**: WebSocket 指数退避自动重连，最多10次
 
 ## 快速启动
 
@@ -57,6 +70,13 @@ npm run dev
 - [x] 项目初始化
 - [x] 后端基础框架
 - [x] Agent编排层
-- [x] 前端页面
+- [x] 前端页面（SaaS Boutique 设计风格）
 - [x] Docker部署
 - [x] CI/CD (GitHub Actions 自动构建镜像)
+- [x] 暗色模式
+- [x] 移动端响应式适配
+- [x] 报告导出 PDF/图片
+- [x] 报告分享链接
+- [x] 骨架屏加载
+- [x] WebSocket 断线自动重连
+- [ ] Grok 实时市场数据搜索（开发中）

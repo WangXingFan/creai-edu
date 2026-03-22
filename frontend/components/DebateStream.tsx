@@ -77,8 +77,8 @@ function MessageCard({ msg, index }: { msg: DebateMessage; index: number }) {
       className={`
         group relative flex gap-3 p-4 rounded-2xl transition-colors
         ${isOrchestrator
-          ? "bg-surface-2/60 border border-border"
-          : `bg-white border border-border shadow-sm agent-indicator-${msg.agent}`
+          ? "bg-surface-2 border border-border"
+          : `bg-[var(--bg-1)] border border-border shadow-sm agent-indicator-${msg.agent}`
         }
       `}
     >
@@ -88,7 +88,7 @@ function MessageCard({ msg, index }: { msg: DebateMessage; index: number }) {
             <Avatar size={36} />
             {msg.isStreaming && (
               <div
-                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white animate-pulse-dot"
+                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-1)] animate-pulse-dot"
                 style={{ backgroundColor: color }}
               />
             )}

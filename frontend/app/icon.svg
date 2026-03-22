@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0052FF"/>
+      <stop offset="100%" stop-color="#4D7CFF"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Subtle inner glow -->
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="none" stroke="white" stroke-opacity="0.15" stroke-width="2"/>
+
+  <!-- Arena / podium shape: 4 ascending bars representing 4 AI judges -->
+  <rect x="88" y="310" width="64" height="110" rx="12" fill="white" fill-opacity="0.3"/>
+  <rect x="178" y="240" width="64" height="180" rx="12" fill="white" fill-opacity="0.5"/>
+  <rect x="268" y="170" width="64" height="250" rx="12" fill="white" fill-opacity="0.7"/>
+  <rect x="358" y="100" width="64" height="320" rx="12" fill="white" fill-opacity="0.95"/>
+
+  <!-- Lightning bolt accent (evaluation/energy) -->
+  <path d="M280 70L240 175H290L250 280" stroke="white" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+
+  <!-- Top sparkle: small diamond representing AI -->
+  <path d="M400 60L408 80L428 88L408 96L400 116L392 96L372 88L392 80Z" fill="white" fill-opacity="0.8"/>
+  <path d="M120 80L125 92L137 97L125 102L120 114L115 102L103 97L115 92Z" fill="white" fill-opacity="0.5"/>
+</svg>

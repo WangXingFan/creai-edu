@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -13,21 +14,21 @@ module.exports = {
       },
       colors: {
         surface: {
-          0: "#FAFAFA",
-          1: "#FFFFFF",
-          2: "#F1F5F9",
-          3: "#E2E8F0",
+          0: "var(--bg-0)",
+          1: "var(--bg-1)",
+          2: "var(--bg-2)",
+          3: "var(--bg-3)",
         },
         border: {
-          DEFAULT: "#E2E8F0",
-          subtle: "#F1F5F9",
-          hover: "#CBD5E1",
+          DEFAULT: "var(--border)",
+          subtle: "var(--bg-2)",
+          hover: "var(--border-hover)",
         },
         text: {
-          primary: "#0F172A",
-          secondary: "#475569",
-          tertiary: "#64748B",
-          muted: "#94A3B8",
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          tertiary: "var(--text-tertiary)",
+          muted: "var(--text-muted)",
         },
         accent: {
           DEFAULT: "#0052FF",

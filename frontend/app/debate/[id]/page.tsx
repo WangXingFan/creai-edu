@@ -16,6 +16,10 @@ import {
 import { useDebateSocket } from "@/hooks/useDebateSocket";
 import DebateStream from "@/components/DebateStream";
 import ScorePanel from "@/components/ScorePanel";
+import ConnectionToast from "@/components/ConnectionToast";
+import ThemeToggle from "@/components/ThemeToggle";
+import BottomSheet from "@/components/BottomSheet";
+import { SkeletonMessage } from "@/components/Skeleton";
 
 export default function DebatePage() {
   const params = useParams();
@@ -34,6 +38,8 @@ export default function DebatePage() {
     status,
     report,
     summaries,
+    connectionState,
+    sendMessage,
   } = useDebateSocket(debateId);
 
   useEffect(() => {
@@ -57,9 +63,10 @@ export default function DebatePage() {
   return (
     <div className="min-h-screen flex flex-col bg-surface-0 relative">
       <div className="arena-bg" />
+      <ConnectionToast state={connectionState} />
 
       {/* Header */}
-      <header className="border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between bg-white/80 backdrop-blur-xl sticky top-0 z-20">
+      <header className="border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between bg-[var(--bg-1)]/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <a
             href="/"
@@ -72,7 +79,7 @@ export default function DebatePage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
           {status === "debating" && (
             <div className="hidden sm:flex items-center gap-1.5">
               {Array.from({ length: maxRounds }, (_, i) => (
@@ -88,7 +95,7 @@ export default function DebatePage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-border shadow-sm">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-1)] border border-border shadow-sm">
             <div
               className={`w-1.5 h-1.5 rounded-full ${
                 status === "debating"
@@ -107,6 +114,8 @@ export default function DebatePage() {
               {status === "error" && "连接中断"}
             </span>
           </div>
+
+          <ThemeToggle />
         </div>
       </header>
 
@@ -121,12 +130,14 @@ export default function DebatePage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-20"
+              className="space-y-3 py-4"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/6 border border-accent/12 mb-4">
-                <Radio className="h-7 w-7 text-accent/60 animate-pulse-subtle" />
+              <div className="text-center mb-6">
+                <p className="text-sm text-text-muted">正在召集评审团...</p>
               </div>
-              <p className="text-sm text-text-muted">正在召集评审团...</p>
+              {[1, 2, 3].map((i) => (
+                <SkeletonMessage key={i} />
+              ))}
             </motion.div>
           )}
 
@@ -183,7 +194,7 @@ export default function DebatePage() {
                 )}
               </div>
 
-              {s.nextFocus && (
+              {s.nextFocus && s.round < maxRounds && status !== "completed" && convergenceRound === null && (
                 <div className="mt-3 flex items-center gap-2 text-[13px] px-4 py-2.5 card">
                   <Target className="h-3.5 w-3.5 text-accent shrink-0" />
                   <span className="text-text-secondary">
@@ -236,6 +247,11 @@ export default function DebatePage() {
           <ScorePanel scores={scores} currentRound={currentRound} maxRounds={maxRounds} />
         </div>
       </div>
+
+      {/* Mobile bottom sheet for ScorePanel */}
+      <BottomSheet label="评分面板">
+        <ScorePanel scores={scores} currentRound={currentRound} maxRounds={maxRounds} />
+      </BottomSheet>
     </div>
   );
 }

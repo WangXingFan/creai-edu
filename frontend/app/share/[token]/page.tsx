@@ -9,16 +9,12 @@ import {
   Lightbulb,
   Quote,
   FileText,
-  Download,
-  Image as ImageIcon,
-  Loader2,
+  Share2,
 } from "lucide-react";
 import RadarChart from "@/components/RadarChart";
 import { formatBeijingTime } from "@/lib/datetime";
 import { getDimensionLabel } from "@/lib/dimensions";
 import { SkeletonReport } from "@/components/Skeleton";
-import ThemeToggle from "@/components/ThemeToggle";
-import ShareButton from "@/components/ShareButton";
 
 interface Report {
   debate_id: string;
@@ -36,26 +32,11 @@ interface Report {
 
 const SEVERITY_CONFIG: Record<
   string,
-  { color: string; bg: string; border: string; label: string }
+  { color: string; label: string }
 > = {
-  high: {
-    color: "text-danger",
-    bg: "bg-danger/5",
-    border: "border-danger/20",
-    label: "高风险",
-  },
-  medium: {
-    color: "text-warning",
-    bg: "bg-warning/5",
-    border: "border-warning/20",
-    label: "中风险",
-  },
-  low: {
-    color: "text-success",
-    bg: "bg-success/5",
-    border: "border-success/20",
-    label: "低风险",
-  },
+  high: { color: "text-danger", label: "high risk" },
+  medium: { color: "text-warning", label: "medium risk" },
+  low: { color: "text-success", label: "low risk" },
 };
 
 const AGENT_COLOR_MAP: Record<string, string> = {
@@ -66,22 +47,28 @@ const AGENT_COLOR_MAP: Record<string, string> = {
   orchestrator: "#7C3AED",
 };
 
-export default function ReportPage() {
+export default function SharedReportPage() {
   const params = useParams();
-  const debateId = params.id as string;
+  const token = params.token as string;
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<"pdf" | "image" | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/debate/${debateId}/report`)
-      .then((res) => res.json())
+    fetch(`/api/share/${token}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Not found");
+        return res.json();
+      })
       .then((data) => {
         setReport(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [debateId]);
+      .catch(() => {
+        setNotFound(true);
+        setLoading(false);
+      });
+  }, [token]);
 
   if (loading) {
     return (
@@ -94,11 +81,14 @@ export default function ReportPage() {
     );
   }
 
-  if (!report) {
+  if (notFound || !report) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-surface-0">
         <FileText className="h-8 w-8 text-text-muted" />
-        <span className="text-text-muted">报告未找到</span>
+        <span className="text-text-muted">分享链接无效或已过期</span>
+        <a href="/" className="text-sm text-accent hover:underline mt-2">
+          返回首页
+        </a>
       </div>
     );
   }
@@ -118,19 +108,19 @@ export default function ReportPage() {
     <div className="min-h-screen p-4 sm:p-6 max-w-4xl mx-auto relative bg-surface-0">
       <div className="arena-bg" />
 
-      <div className="relative z-10" id="report-content">
-        <div className="flex items-center gap-2 mb-8 text-sm">
+      <div className="relative z-10">
+        {/* Shared badge */}
+        <div className="flex items-center justify-between mb-8">
           <a
             href="/"
-            className="flex items-center gap-1.5 text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-text-muted hover:text-text-secondary transition-colors cursor-pointer text-sm"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            首页
+            Startup Arena
           </a>
-          <span className="text-border-hover">/</span>
-          <span className="text-text-secondary font-medium">评估报告</span>
-          <div className="ml-auto">
-            <ThemeToggle />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/6 border border-accent/12 text-accent text-xs font-semibold">
+            <Share2 className="h-3 w-3" />
+            Shared Report
           </div>
         </div>
 
@@ -152,15 +142,10 @@ export default function ReportPage() {
           className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8"
         >
           <div className="card p-6 text-center">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 150 }}
-              className={`text-6xl font-display font-extrabold tabular-nums ${scoreClass} mb-1`}
-            >
+            <div className={`text-6xl font-display font-extrabold tabular-nums ${scoreClass} mb-1`}>
               {overallScore}
-            </motion.div>
-            <div className="text-xs text-text-muted font-semibold mb-6">综合评分</div>
+            </div>
+            <div className="text-xs text-text-muted font-semibold mb-6">Overall Score</div>
 
             <div className="space-y-2.5">
               {Object.entries(report.final_scores ?? {}).map(([dim, score]) => {
@@ -171,12 +156,9 @@ export default function ReportPage() {
                       {getDimensionLabel(dim)}
                     </span>
                     <div className="flex-1 progress-track">
-                      <motion.div
+                      <div
                         className="progress-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${score}%` }}
-                        transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
-                        style={{ backgroundColor: barColor }}
+                        style={{ backgroundColor: barColor, width: `${score}%` }}
                       />
                     </div>
                     <span
@@ -192,7 +174,7 @@ export default function ReportPage() {
           </div>
 
           <div className="card p-5">
-            <h3 className="text-xs text-text-muted font-semibold mb-2">维度雷达</h3>
+            <h3 className="text-xs text-text-muted font-semibold mb-2">Dimension Radar</h3>
             <RadarChart scores={report.final_scores ?? {}} size="lg" />
             {r?.overall_assessment && (
               <div className="mt-4 p-3 rounded-xl bg-surface-2 border border-border">
@@ -205,92 +187,59 @@ export default function ReportPage() {
         </motion.div>
 
         {r?.risks && r.risks.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
-          >
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle className="h-4 w-4 text-danger" />
-              <h2 className="text-base font-display font-bold text-text-primary">风险评估</h2>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-danger/6 text-danger font-bold border border-danger/15 font-mono tabular-nums">
-                {r.risks.length}
-              </span>
+              <h2 className="text-base font-display font-bold text-text-primary">Risks</h2>
             </div>
             <div className="space-y-2">
               {r.risks.map((risk, i) => {
                 const config = SEVERITY_CONFIG[risk.severity] ?? SEVERITY_CONFIG.medium;
                 return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 + i * 0.04 }}
-                    className={`card px-4 py-3 !${config.border}`}
-                  >
+                  <div key={i} className="card px-4 py-3">
                     <span className={`text-[10px] font-bold mr-2 ${config.color}`}>
                       [{config.label}]
                     </span>
                     <span className="text-sm text-text-secondary">{risk.risk}</span>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
-          </motion.div>
+          </div>
         )}
 
         {r?.improvements && r.improvements.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mb-8"
-          >
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-4 w-4 text-accent" />
-              <h2 className="text-base font-display font-bold text-text-primary">改进建议</h2>
+              <h2 className="text-base font-display font-bold text-text-primary">Improvements</h2>
             </div>
             <div className="space-y-2">
               {r.improvements.map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.35 + i * 0.04 }}
-                  className="flex gap-3 card px-4 py-3"
-                >
+                <div key={i} className="flex gap-3 card px-4 py-3">
                   <span className="text-accent/60 font-bold shrink-0 text-sm font-mono tabular-nums">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span className="text-sm text-text-secondary">{item}</span>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         )}
 
         {r?.highlights && r.highlights.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mb-8"
-          >
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Quote className="h-4 w-4 text-accent" />
-              <h2 className="text-base font-display font-bold text-text-primary">评审观点</h2>
+              <h2 className="text-base font-display font-bold text-text-primary">Key Insights</h2>
             </div>
             <div className="space-y-2.5">
               {r.highlights.map((h, i) => {
                 const agentKey = h.agent.toLowerCase().replace(/\s+/g, "_");
                 const agentColor = AGENT_COLOR_MAP[agentKey] ?? "#7C3AED";
                 return (
-                  <motion.div
+                  <div
                     key={i}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.45 + i * 0.04 }}
                     className="card px-4 py-3"
                     style={{ borderLeftColor: `${agentColor}30`, borderLeftWidth: 3 }}
                   >
@@ -298,47 +247,17 @@ export default function ReportPage() {
                       {h.agent}
                     </span>
                     <p className="text-sm text-text-secondary leading-relaxed">{h.point}</p>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
-          </motion.div>
+          </div>
         )}
 
-        <div className="flex flex-wrap gap-3 justify-center pt-4 pb-12">
+        <div className="text-center pt-4 pb-12">
           <a href="/" className="inline-flex items-center gap-2 px-6 py-2.5 text-sm btn-primary cursor-pointer">
-            <span>评估新想法</span>
+            <span>Try Startup Arena</span>
           </a>
-          <a href="/history" className="px-5 py-2.5 text-sm btn-secondary cursor-pointer">
-            历史记录
-          </a>
-          <ShareButton debateId={debateId} />
-          <button
-            onClick={async () => {
-              setExporting("image");
-              const { exportAsImage } = await import("@/lib/exportReport");
-              await exportAsImage("report-content", `startup-arena-${debateId}`);
-              setExporting(null);
-            }}
-            disabled={!!exporting}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm btn-secondary cursor-pointer"
-          >
-            {exporting === "image" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-            导出图片
-          </button>
-          <button
-            onClick={async () => {
-              setExporting("pdf");
-              const { exportAsPDF } = await import("@/lib/exportReport");
-              await exportAsPDF("report-content", `startup-arena-${debateId}`);
-              setExporting(null);
-            }}
-            disabled={!!exporting}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm btn-secondary cursor-pointer"
-          >
-            {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            导出 PDF
-          </button>
         </div>
       </div>
     </div>

@@ -24,6 +24,8 @@ interface DebateEvent {
   message?: string;
 }
 
+export type ConnectionState = "connected" | "reconnecting" | "lost";
+
 interface UseDebateSocketReturn {
   messages: DebateMessage[];
   scores: Record<string, number>;
@@ -33,6 +35,8 @@ interface UseDebateSocketReturn {
   status: "connecting" | "debating" | "completed" | "error";
   report: Record<string, unknown> | null;
   summaries: RoundSummary[];
+  connectionState: ConnectionState;
+  sendMessage: (content: string) => void;
 }
 
 export interface DebateMessage {
@@ -62,6 +66,8 @@ const AGENT_COLORS: Record<string, string> = {
   orchestrator: "#7C3AED",
 };
 
+const MAX_RECONNECT_ATTEMPTS = 10;
+
 export { AGENT_COLORS };
 
 export function useDebateSocket(debateId: string): UseDebateSocketReturn {
@@ -73,8 +79,11 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
   const [status, setStatus] = useState<UseDebateSocketReturn["status"]>("connecting");
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [summaries, setSummaries] = useState<RoundSummary[]>([]);
+  const [connectionState, setConnectionState] = useState<ConnectionState>("connected");
   const wsRef = useRef<WebSocket | null>(null);
   const streamingRef = useRef<Map<string, string>>(new Map());
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleEvent = useCallback((event: DebateEvent) => {
     switch (event.type) {
@@ -85,6 +94,7 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
       case "round_start":
         setCurrentRound(event.round ?? 0);
         if (event.max_rounds) setMaxRounds(event.max_rounds);
+        setStatus("debating");
         break;
 
       case "agent_start":
@@ -184,21 +194,30 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
     }
   }, []);
 
+  const sendMessage = useCallback((content: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "user_message", content }));
+    }
+  }, []);
+
   useEffect(() => {
     const wsProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsHost = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== "undefined" ? `${wsProtocol}//${window.location.host}` : "ws://localhost:8000");
     const wsUrl = `${wsHost}/ws/debate/${debateId}`;
 
-    let ws: WebSocket | null = null;
     let disposed = false;
 
     const connect = () => {
       if (disposed) return;
-      ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setStatus("connecting");
+        if (reconnectAttemptRef.current > 0) {
+          setConnectionState("connected");
+        }
+        reconnectAttemptRef.current = 0;
+        setStatus((prev) => (prev === "error" ? "connecting" : prev));
       };
 
       ws.onmessage = (e) => {
@@ -210,18 +229,28 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         }
       };
 
-      ws.onerror = () => {
-        // Don't set error here, let onclose handle it
-      };
+      ws.onerror = () => {};
 
       ws.onclose = () => {
         if (disposed) return;
+
         setStatus((prev) => {
-          // If completed or already error, don't change
-          if (prev === "completed" || prev === "error") return prev;
+          if (prev === "completed") return prev;
+
+          // Try reconnect if debate is still active
+          if (prev === "debating" || prev === "connecting") {
+            if (reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+              const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
+              reconnectAttemptRef.current += 1;
+              setConnectionState("reconnecting");
+              reconnectTimerRef.current = setTimeout(connect, delay);
+              return prev;
+            }
+            setConnectionState("lost");
+          }
+
           return "error";
         });
-        // DO NOT auto-reconnect — user should start a new debate
       };
     };
 
@@ -229,7 +258,10 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
 
     return () => {
       disposed = true;
-      ws?.close();
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      wsRef.current?.close();
     };
   }, [debateId, handleEvent]);
 
@@ -242,5 +274,7 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
     status,
     report,
     summaries,
+    connectionState,
+    sendMessage,
   };
 }

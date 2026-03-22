@@ -37,3 +37,6 @@ class Debate(Base):
 
     # Final report content
     report = Column(JSON, nullable=True)
+
+    # Share link token
+    share_token = Column(String, nullable=True, unique=True, index=True)
