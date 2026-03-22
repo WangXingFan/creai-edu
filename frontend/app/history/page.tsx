@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Trophy,
@@ -11,6 +11,8 @@ import {
   Zap,
   AlertCircle,
   Inbox,
+  Trash2,
+  X,
 } from "lucide-react";
 import { formatBeijingTime } from "@/lib/datetime";
 
@@ -27,6 +29,8 @@ interface DebateItem {
 export default function HistoryPage() {
   const [debates, setDebates] = useState<DebateItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/debates")
@@ -37,6 +41,21 @@ export default function HistoryPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/debate/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setDebates((prev) => prev.filter((d) => d.id !== id));
+      }
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    } finally {
+      setDeletingId(null);
+      setConfirmId(null);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, { text: string; className: string; icon: React.ReactNode }> = {
@@ -124,49 +143,103 @@ export default function HistoryPage() {
           </div>
         ) : (
           <div className="space-y-2.5">
-            {debates.map((debate, i) => {
-              const score = getOverallScore(debate.final_scores);
-              const scoreClass =
-                score !== null
-                  ? score >= 70 ? "score-good" : score >= 40 ? "score-warning" : "score-critical"
-                  : "text-text-muted";
+            <AnimatePresence>
+              {debates.map((debate, i) => {
+                const score = getOverallScore(debate.final_scores);
+                const scoreClass =
+                  score !== null
+                    ? score >= 70 ? "score-good" : score >= 40 ? "score-warning" : "score-critical"
+                    : "text-text-muted";
+                const isConfirming = confirmId === debate.id;
+                const isDeleting = deletingId === debate.id;
 
-              return (
-                <motion.a
-                  key={debate.id}
-                  href={debate.status === "completed" ? `/report/${debate.id}` : `/debate/${debate.id}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="group block card px-4 py-3.5 cursor-pointer"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-text-primary font-medium truncate group-hover:text-accent transition-colors">
-                        {debate.idea}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-text-muted">{formatBeijingTime(debate.created_at)}</span>
-                        {debate.status === "in_progress" && (
-                          <span className="text-[11px] text-accent font-mono tabular-nums">
-                            {debate.current_round}/{debate.max_rounds}
+                return (
+                  <motion.div
+                    key={debate.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -40, height: 0, marginBottom: 0, transition: { duration: 0.25 } }}
+                    transition={{ delay: i * 0.03 }}
+                    className="group relative card px-4 py-3.5"
+                  >
+                    {/* Delete confirmation overlay */}
+                    <AnimatePresence>
+                      {isConfirming && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute inset-0 z-10 flex items-center justify-center gap-3 rounded-2xl bg-white/95 backdrop-blur-sm border border-danger/20"
+                        >
+                          <span className="text-sm text-text-secondary">确认删除？</span>
+                          <button
+                            onClick={() => handleDelete(debate.id)}
+                            disabled={isDeleting}
+                            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-danger rounded-full hover:bg-red-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                            删除
+                          </button>
+                          <button
+                            onClick={() => setConfirmId(null)}
+                            className="px-3.5 py-1.5 text-xs font-semibold text-text-secondary bg-surface-2 rounded-full hover:bg-surface-3 transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <X className="h-3 w-3" />
+                            取消
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Content (clickable) */}
+                      <a
+                        href={debate.status === "completed" ? `/report/${debate.id}` : `/debate/${debate.id}`}
+                        className="flex-1 min-w-0 cursor-pointer"
+                      >
+                        <p className="text-sm text-text-primary font-medium truncate group-hover:text-accent transition-colors">
+                          {debate.idea}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-xs text-text-muted">{formatBeijingTime(debate.created_at)}</span>
+                          {debate.status === "in_progress" && (
+                            <span className="text-[11px] text-accent font-mono tabular-nums">
+                              {debate.current_round}/{debate.max_rounds}
+                            </span>
+                          )}
+                        </div>
+                      </a>
+
+                      {/* Right side: badge + score + delete + arrow */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {getStatusBadge(debate.status)}
+                        {score !== null && (
+                          <span className={`text-xl font-display font-extrabold tabular-nums ${scoreClass}`}>
+                            {score}
                           </span>
                         )}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setConfirmId(debate.id);
+                          }}
+                          className="p-1.5 rounded-lg text-text-muted/0 group-hover:text-text-muted hover:!text-danger hover:bg-danger/6 transition-all cursor-pointer"
+                          title="删除"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                        <a
+                          href={debate.status === "completed" ? `/report/${debate.id}` : `/debate/${debate.id}`}
+                          className="cursor-pointer"
+                        >
+                          <ChevronRight className="h-4 w-4 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                        </a>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {getStatusBadge(debate.status)}
-                      {score !== null && (
-                        <span className={`text-xl font-display font-extrabold tabular-nums ${scoreClass}`}>
-                          {score}
-                        </span>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
-                    </div>
-                  </div>
-                </motion.a>
-              );
-            })}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
       </div>

@@ -8,7 +8,7 @@
 
 - **前端**: Next.js 14 + React + TailwindCSS + Framer Motion
 - **后端**: Python FastAPI + SQLite
-- **Agent**: LangGraph + GPT-4o + Claude
+- **Agent**: LangGraph + GPT-5.4 + Claude Sonnet 4.6 + DeepSeek + Gemini + GLM
 - **部署**: Docker Compose
 
 ## 快速启动
@@ -46,17 +46,17 @@ npm run dev
 
 | 角色 | LLM | 关注维度 |
 |------|-----|---------|
-| 天使投资人 | GPT-4o | 商业模式、市场规模、盈利路径 |
-| 技术CTO | Claude | 技术可行性、技术壁垒、开发成本 |
-| 目标用户 | GPT-4o | 痛点真实性、使用意愿 |
-| 竞品分析师 | Claude | 竞争格局、差异化、护城河 |
-| 主持人 | GPT-4o-mini | 辩论节奏、话题引导 |
+| 天使投资人 | GPT-5.4 | 商业模式、市场规模、盈利路径 |
+| 技术CTO | DeepSeek Chat | 技术可行性、技术壁垒、开发成本 |
+| 目标用户 | GLM-5 | 痛点真实性、使用意愿 |
+| 竞品分析师 | Gemini 3 Flash | 竞争格局、差异化、护城河 |
+| 主持人 | Claude Sonnet 4.6 | 辩论节奏、话题引导 |
 
 ## 项目状态
 
 - [x] 项目初始化
-- [ ] 后端基础框架
-- [ ] Agent编排层
-- [ ] 前端页面
-- [ ] Docker部署
-- [ ] 演示准备
+- [x] 后端基础框架
+- [x] Agent编排层
+- [x] 前端页面
+- [x] Docker部署
+- [x] CI/CD (GitHub Actions 自动构建镜像)
