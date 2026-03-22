@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.next/
+dist/
+.venv/
+
+# Environment
+.env
+*.db
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+data/
+
+# Build
+*.tsbuildinfo
+
+# Local tooling
+.claude/
+.playwright-mcp/
+.spec-workflow/
+
+# Screenshots
+homepage-*.png
