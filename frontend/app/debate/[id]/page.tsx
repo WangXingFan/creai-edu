@@ -37,6 +37,8 @@ export default function DebatePage() {
     currentRound,
     maxRounds,
     convergenceRound,
+    summarizingRound,
+    isGeneratingReport,
     status,
     report,
     summaries,
@@ -55,6 +57,12 @@ export default function DebatePage() {
       streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!userScrolledUp.current) {
+      streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [summaries.length, summarizingRound, isGeneratingReport, status]);
 
   const handleScroll = () => {
     const el = scrollContainerRef.current;
@@ -114,7 +122,9 @@ export default function DebatePage() {
             <span className="text-xs text-text-secondary font-medium">
               {status === "connecting" && "连接中..."}
               {status === "searching" && "搜索市场数据..."}
-              {status === "debating" && `第 ${currentRound} 轮 · 进行中`}
+              {status === "debating" && isGeneratingReport && "最终报告生成中"}
+              {status === "debating" && !isGeneratingReport && summarizingRound !== null && `第 ${summarizingRound} 轮 · 总结中`}
+              {status === "debating" && !isGeneratingReport && summarizingRound === null && `第 ${currentRound} 轮 · 进行中`}
               {status === "completed" && "评估完成"}
               {status === "error" && "连接中断"}
             </span>
@@ -168,6 +178,19 @@ export default function DebatePage() {
           )}
 
           <DebateStream messages={messages} currentRound={currentRound} />
+
+          {summarizingRound !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="my-6 card p-4"
+            >
+              <div className="flex items-center gap-2 text-sm text-text-secondary">
+                <Loader2 className="h-4 w-4 text-accent animate-spin shrink-0" />
+                <span>主持人正在汇总第 {summarizingRound} 轮观点与分歧...</span>
+              </div>
+            </motion.div>
+          )}
 
           {summaries.map((s) => (
             <motion.div
@@ -241,6 +264,21 @@ export default function DebatePage() {
               <div className="flex items-center gap-2 text-sm text-success">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 <span>第 {convergenceRound} 轮达成收敛 — 评审团意见趋于一致</span>
+              </div>
+            </motion.div>
+          )}
+
+          {isGeneratingReport && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 mb-2"
+            >
+              <div className="card p-4 !border-accent/25">
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <Loader2 className="h-4 w-4 text-accent animate-spin shrink-0" />
+                  <span>主持人正在生成最终评估报告，风险、建议和评审观点即将整理完成...</span>
+                </div>
               </div>
             </motion.div>
           )}

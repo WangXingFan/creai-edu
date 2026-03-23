@@ -67,6 +67,13 @@ OPENAI_COMPATIBLE_MODEL_PROVIDER = "openai_compatible"
 BAIDU_QIANFAN_MODEL_PROVIDER = "baidu_qianfan"
 _BAIDU_MODEL_ALIASES = {"ernie"}
 _BAIDU_MODEL_PREFIXES = ("ernie", "paddlepaddle/ernie")
+_REPORT_KEYS = {
+    "overall_assessment",
+    "dimension_scores",
+    "risks",
+    "improvements",
+    "highlights",
+}
 
 
 def _normalize_model_key(model_key: str) -> str:
@@ -118,6 +125,16 @@ def get_runtime_agent_configs() -> dict[str, dict[str, str]]:
         agent_key: get_agent_runtime_config(agent_key)
         for agent_key in _AGENT_DEFS
     }
+
+
+def _build_user_instruction(runtime_config: dict[str, str], instruction: str) -> str:
+    """Add model-specific control hints to the user turn when needed."""
+    model_key = runtime_config.get("model_key", "")
+    model_name = runtime_config.get("model_name", "")
+    normalized_name = model_name.strip().lower()
+    if model_key == "qwen" or normalized_name.startswith("qwen"):
+        return f"/no_think\n{instruction}"
+    return instruction
 
 
 def _get_llm(model_key: str):
@@ -182,14 +199,103 @@ def _parse_summary(response_text: str) -> dict:
 
 def _parse_report(response_text: str) -> dict:
     """Extract report JSON from orchestrator response."""
-    pattern = r"```report\s*\n(.*?)\n```"
-    match = re.search(pattern, response_text, re.DOTALL)
-    if match:
+    candidates: list[str] = []
+    for pattern in (
+        r"```report\s*\n(.*?)\n```",
+        r"```json\s*\n(.*?)\n```",
+        r"```\s*\n(.*?)\n```",
+    ):
+        match = re.search(pattern, response_text, re.DOTALL)
+        if match:
+            candidates.append(match.group(1).strip())
+
+    if not candidates:
+        extracted = _extract_first_json_object(response_text)
+        if extracted:
+            candidates.append(extracted)
+
+    for candidate in candidates:
         try:
-            return json.loads(match.group(1))
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
         except json.JSONDecodeError:
-            logger.warning("Failed to parse report JSON")
+            logger.warning("Failed to parse report JSON candidate")
     return {}
+
+
+def _extract_first_json_object(text: str) -> str | None:
+    """Return the first balanced JSON object found inside free-form text."""
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        in_string = False
+        escaped = False
+        for idx in range(start, len(text)):
+            char = text[idx]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+
+            if char == '"':
+                in_string = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start:idx + 1]
+        start = text.find("{", start + 1)
+    return None
+
+
+def _is_valid_report_payload(payload: dict) -> bool:
+    """Treat a report as valid only when it contains meaningful structured content."""
+    if not isinstance(payload, dict):
+        return False
+    if not _REPORT_KEYS.issubset(payload.keys()):
+        return False
+    if not str(payload.get("overall_assessment", "")).strip():
+        return False
+    if not isinstance(payload.get("dimension_scores"), dict) or not payload.get("dimension_scores"):
+        return False
+    for key in ("risks", "improvements", "highlights"):
+        value = payload.get(key)
+        if not isinstance(value, list) or not value:
+            return False
+    return True
+
+
+def _clean_report_text(response_text: str) -> str:
+    """Strip code fences and collapse whitespace for fallback summaries."""
+    cleaned = re.sub(r"```(?:report|json)?\s*", "", response_text)
+    cleaned = cleaned.replace("```", "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _build_fallback_report(
+    response_text: str,
+    aggregated_scores: dict[str, float],
+) -> dict[str, Any]:
+    """Build a non-fabricated fallback report when structured parsing fails."""
+    cleaned_text = _clean_report_text(response_text)
+    overall_assessment = cleaned_text[:220].strip()
+    if not overall_assessment:
+        overall_assessment = "最终报告已生成，但结构化解析失败。建议重新生成一次，以获取完整的风险、建议和评审观点。"
+
+    return {
+        "overall_assessment": overall_assessment,
+        "dimension_scores": aggregated_scores,
+        "risks": [],
+        "improvements": [],
+        "highlights": [],
+    }
 
 
 async def _invoke_agent(
@@ -218,7 +324,12 @@ async def _invoke_agent(
     full_response = ""
     messages = [
         SystemMessage(content=prompt),
-        HumanMessage(content="Please begin your analysis now."),
+        HumanMessage(
+            content=_build_user_instruction(
+                runtime_config,
+                "Please begin your analysis now.",
+            )
+        ),
     ]
 
     if on_event:
@@ -305,6 +416,26 @@ async def _invoke_orchestrator_summary(
     llm = _get_llm(runtime_config["model_key"])
     prompt_template = _load_prompt(config["prompt_file"])
 
+    if on_event:
+        if current_round != -1:
+            await on_event({
+                "type": "round_summary_start",
+                "round": current_round,
+                "agent": "orchestrator",
+                "agent_name": config["name"],
+                "model_key": runtime_config["model_key"],
+                "model_name": runtime_config["model_name"],
+            })
+        else:
+            await on_event({
+                "type": "final_report_start",
+                "agent": "orchestrator",
+                "agent_name": config["name"],
+                "model_key": runtime_config["model_key"],
+                "model_name": runtime_config["model_name"],
+                "message": "主持人正在生成最终评估报告...",
+            })
+
     prompt = prompt_template.format(
         idea=idea,
         round=current_round,
@@ -319,16 +450,35 @@ async def _invoke_orchestrator_summary(
     else:
         prompt += "\n\nPlease produce the round summary using the ```summary``` format."
 
-    full_response = ""
-    messages = [
-        SystemMessage(content=prompt),
-        HumanMessage(content="Please produce your output now."),
-    ]
-    async for chunk in llm.astream(messages):
-        full_response += chunk.content
-
     if current_round == -1:
-        parsed = _parse_report(full_response)
+        full_response = ""
+        parsed: dict[str, Any] = {}
+        retry_suffix = "\n\nIMPORTANT: Return ONLY one ```report``` fenced JSON block. Do not output any prose before or after it. Ensure overall_assessment, dimension_scores, risks, improvements, and highlights are all present."
+        for attempt in range(2):
+            full_response = ""
+            attempt_prompt = prompt if attempt == 0 else prompt + retry_suffix
+            messages = [
+                SystemMessage(content=attempt_prompt),
+                HumanMessage(
+                    content=_build_user_instruction(
+                        runtime_config,
+                        "Please produce your output now.",
+                    )
+                ),
+            ]
+            async for chunk in llm.astream(messages):
+                full_response += chunk.content
+            parsed = _parse_report(full_response)
+            if _is_valid_report_payload(parsed):
+                break
+            logger.warning("Final report parse failed on attempt %s", attempt + 1)
+
+        if not _is_valid_report_payload(parsed):
+            parsed = _build_fallback_report(
+                response_text=full_response,
+                aggregated_scores=_aggregate_scores(all_scores),
+            )
+
         if on_event:
             await on_event({
                 "type": "final_report",
@@ -338,6 +488,19 @@ async def _invoke_orchestrator_summary(
             })
         return parsed
     else:
+        full_response = ""
+        messages = [
+            SystemMessage(content=prompt),
+            HumanMessage(
+                content=_build_user_instruction(
+                    runtime_config,
+                    "Please produce your output now.",
+                )
+            ),
+        ]
+        async for chunk in llm.astream(messages):
+            full_response += chunk.content
+
         parsed = _parse_summary(full_response)
         if on_event:
             await on_event({

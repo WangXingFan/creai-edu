@@ -16,7 +16,7 @@
 
 - **多Agent辩论**: 4位AI评审官 + 1位AI主持人，多轮深度辩论
 - **联网市场调研**: 辩论前自动调研市场规模、竞品信息、行业动态
-- **实时流式输出**: WebSocket推送，逐字显示Agent发言
+- **实时流式输出**: 市场调研与评审发言逐字显示；轮次小结显示“总结中”提示，完成后一次性落地
 - **六维雷达图**: 市场需求、商业模式、技术可行性、竞争优势、用户体验、团队契合
 - **暗色模式**: 一键切换亮/暗主题，全站适配
 - **移动端适配**: 响应式布局 + 底部抽屉评分面板
@@ -51,7 +51,7 @@ ROLE_COMPETITOR=ernie
 ```bash
 MODEL_DEEPSEEK=deepseek-chat
 MODEL_GLM=glm-5
-MODEL_QWEN=qwen3.5-plus
+MODEL_QWEN=qwen3.5-flash
 MODEL_KIMI=kimi-latest
 MODEL_ERNIE=ernie-x1-turbo-32k
 
@@ -62,8 +62,9 @@ ROLE_COMPETITOR=ernie
 ROLE_ORCHESTRATOR=glm
 ```
 
-当前 `.env.example` 仅保留国内模型别名：
+当前 `.env.example` 模型别名：
 `deepseek / glm / qwen / kimi / ernie`
+
 
 ### 手动启动
 
@@ -97,6 +98,13 @@ npm run dev
 | 竞品分析师 | ERNIE | 竞争格局、差异化、护城河 |
 | 主持人 | GLM | 辩论节奏、话题引导 |
 | 搜索引擎 | 百度千帆智能搜索 / OpenAI兼容搜索 | 辩论前实时搜索市场数据 |
+
+## 当前交互说明
+
+- 市场调研卡片：流式 Markdown 渲染
+- 评审发言：流式追加内容，结束后按 Markdown 渲染完整正文
+- 轮次小结：先显示“主持人正在汇总…”提示，完成后一次性展示结构化小结
+- 最终报告：主持人完成生成后一次性进入报告页
 
 ## 导出说明
 

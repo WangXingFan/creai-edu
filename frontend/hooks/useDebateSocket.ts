@@ -34,6 +34,8 @@ interface UseDebateSocketReturn {
   currentRound: number;
   maxRounds: number;
   convergenceRound: number | null;
+  summarizingRound: number | null;
+  isGeneratingReport: boolean;
   status: "connecting" | "searching" | "debating" | "completed" | "error";
   report: Record<string, unknown> | null;
   summaries: RoundSummary[];
@@ -80,6 +82,8 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
   const [currentRound, setCurrentRound] = useState(0);
   const [maxRounds, setMaxRounds] = useState(3);
   const [convergenceRound, setConvergenceRound] = useState<number | null>(null);
+  const [summarizingRound, setSummarizingRound] = useState<number | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [status, setStatus] = useState<UseDebateSocketReturn["status"]>("connecting");
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [summaries, setSummaries] = useState<RoundSummary[]>([]);
@@ -115,11 +119,14 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         break;
 
       case "debate_start":
+        setIsGeneratingReport(false);
         setStatus("debating");
         break;
 
       case "round_start":
         setCurrentRound(event.round ?? 0);
+        setSummarizingRound(null);
+        setIsGeneratingReport(false);
         if (event.max_rounds) setMaxRounds(event.max_rounds);
         setStatus("debating");
         break;
@@ -213,7 +220,12 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         }
         break;
 
+      case "round_summary_start":
+        setSummarizingRound(event.round ?? null);
+        break;
+
       case "round_summary":
+        setSummarizingRound(null);
         if (event.summary) {
           setSummaries((prev) => [
             ...prev,
@@ -232,13 +244,23 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         setConvergenceRound(event.round ?? null);
         break;
 
+      case "final_report_start":
+        setSummarizingRound(null);
+        setIsGeneratingReport(true);
+        setStatus("debating");
+        break;
+
       case "debate_complete":
+        setSummarizingRound(null);
+        setIsGeneratingReport(false);
         setStatus("completed");
         if (event.report) setReport(event.report);
         if (event.final_scores) setScores(event.final_scores);
         break;
 
       case "error":
+        setSummarizingRound(null);
+        setIsGeneratingReport(false);
         setStatus("error");
         setMessages((prev) =>
           prev.map((message) =>
@@ -333,6 +355,8 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
     currentRound,
     maxRounds,
     convergenceRound,
+    summarizingRound,
+    isGeneratingReport,
     status,
     report,
     summaries,
