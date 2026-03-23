@@ -2,24 +2,25 @@
 
 ## 项目简介
 
-多Agent辩论式创业想法评估系统。用户输入一句话创业idea，5个不同角色的AI Agent展开多轮辩论，最终输出结构化评估报告。
+多Agent辩论式创业想法评估系统。用户输入一句话创业idea，5个不同角色的AI Agent展开多轮辩论，最终输出结构化评估报告。支持可切换的联网搜索市场调研，让评估基于真实数据而非纯推测。
 
 ## 技术栈
 
 - **前端**: Next.js 14 + React + TailwindCSS + Framer Motion
 - **后端**: Python FastAPI + SQLite
-- **Agent**: LangGraph + GPT-5.4 + Claude Sonnet 4.6 + DeepSeek + Gemini + GLM
-- **搜索**: （开发中）Grok 实时搜索市场数据
+- **Agent**: LangGraph + DeepSeek + GLM + Qwen + Kimi + ERNIE
+- **搜索**: 可配置联网搜索，默认使用百度千帆智能搜索，也支持复用 OpenAI 兼容网关
 - **部署**: Docker Compose + GitHub Actions CI/CD
 
 ## 功能特性
 
 - **多Agent辩论**: 4位AI评审官 + 1位AI主持人，多轮深度辩论
+- **联网市场调研**: 辩论前自动调研市场规模、竞品信息、行业动态
 - **实时流式输出**: WebSocket推送，逐字显示Agent发言
 - **六维雷达图**: 市场需求、商业模式、技术可行性、竞争优势、用户体验、团队契合
 - **暗色模式**: 一键切换亮/暗主题，全站适配
 - **移动端适配**: 响应式布局 + 底部抽屉评分面板
-- **报告导出**: 支持导出为 PNG 图片或 PDF 文件
+- **报告导出**: 支持导出为 PNG 分享图或 PDF 完整报告
 - **报告分享**: 生成公开分享链接，复制即可发送
 - **骨架屏加载**: 页面加载时显示内容占位动画
 - **断线重连**: WebSocket 指数退避自动重连，最多10次
@@ -32,6 +33,37 @@ cp .env.example .env
 # 编辑 .env 填入 API Keys
 docker compose up
 ```
+
+如果要启用百度千帆搜索，在 `.env` 中设置：
+```bash
+MARKET_SEARCH_PROVIDER=baidu_qianfan
+BAIDU_QIANFAN_API_KEY=your-qianfan-api-key
+```
+
+如果要让 `ernie` 角色模型直连百度千帆，在 `.env` 中补充：
+```bash
+BAIDU_QIANFAN_BASE_URL=https://qianfan.baidubce.com/v2
+MODEL_ERNIE=ernie-x1-turbo-32k
+ROLE_COMPETITOR=ernie
+```
+
+如果要给不同评审角色切换模型别名，可在 `.env` 中设置：
+```bash
+MODEL_DEEPSEEK=deepseek-chat
+MODEL_GLM=glm-5
+MODEL_QWEN=qwen3.5-plus
+MODEL_KIMI=kimi-latest
+MODEL_ERNIE=ernie-x1-turbo-32k
+
+ROLE_INVESTOR=qwen
+ROLE_CTO=deepseek
+ROLE_USER_REP=kimi
+ROLE_COMPETITOR=ernie
+ROLE_ORCHESTRATOR=glm
+```
+
+当前 `.env.example` 仅保留国内模型别名：
+`deepseek / glm / qwen / kimi / ernie`
 
 ### 手动启动
 
@@ -59,11 +91,17 @@ npm run dev
 
 | 角色 | LLM | 关注维度 |
 |------|-----|---------|
-| 天使投资人 | GPT-5.4 | 商业模式、市场规模、盈利路径 |
+| 天使投资人 | Qwen | 商业模式、市场规模、盈利路径 |
 | 技术CTO | DeepSeek Chat | 技术可行性、技术壁垒、开发成本 |
-| 目标用户 | GLM-5 | 痛点真实性、使用意愿 |
-| 竞品分析师 | Gemini 3 Flash | 竞争格局、差异化、护城河 |
-| 主持人 | Claude Sonnet 4.6 | 辩论节奏、话题引导 |
+| 目标用户 | Kimi | 痛点真实性、使用意愿 |
+| 竞品分析师 | ERNIE | 竞争格局、差异化、护城河 |
+| 主持人 | GLM | 辩论节奏、话题引导 |
+| 搜索引擎 | 百度千帆智能搜索 / OpenAI兼容搜索 | 辩论前实时搜索市场数据 |
+
+## 导出说明
+
+- **PNG 图片**: 导出为精简后的分享长图，突出标题、综合评分、雷达图、核心风险、改进建议和评审金句
+- **PDF 文件**: 导出为完整评估报告，按 A4 多页分页，避免在卡片中间硬切页
 
 ## 项目状态
 
@@ -79,4 +117,4 @@ npm run dev
 - [x] 报告分享链接
 - [x] 骨架屏加载
 - [x] WebSocket 断线自动重连
-- [ ] Grok 实时市场数据搜索（开发中）
+- [x] 可切换联网市场数据搜索

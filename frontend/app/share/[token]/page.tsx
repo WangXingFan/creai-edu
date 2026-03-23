@@ -34,9 +34,9 @@ const SEVERITY_CONFIG: Record<
   string,
   { color: string; label: string }
 > = {
-  high: { color: "text-danger", label: "high risk" },
-  medium: { color: "text-warning", label: "medium risk" },
-  low: { color: "text-success", label: "low risk" },
+  high: { color: "text-danger", label: "高风险" },
+  medium: { color: "text-warning", label: "中风险" },
+  low: { color: "text-success", label: "低风险" },
 };
 
 const AGENT_COLOR_MAP: Record<string, string> = {
@@ -45,6 +45,14 @@ const AGENT_COLOR_MAP: Record<string, string> = {
   user_rep: "#059669",
   competitor: "#E11D48",
   orchestrator: "#7C3AED",
+};
+
+const AGENT_LABEL_MAP: Record<string, string> = {
+  investor: "天使投资人",
+  cto: "技术 CTO",
+  user_rep: "目标用户",
+  competitor: "竞品分析师",
+  orchestrator: "主持人",
 };
 
 export default function SharedReportPage() {
@@ -120,7 +128,7 @@ export default function SharedReportPage() {
           </a>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/6 border border-accent/12 text-accent text-xs font-semibold">
             <Share2 className="h-3 w-3" />
-            Shared Report
+            分享报告
           </div>
         </div>
 
@@ -145,7 +153,7 @@ export default function SharedReportPage() {
             <div className={`text-6xl font-display font-extrabold tabular-nums ${scoreClass} mb-1`}>
               {overallScore}
             </div>
-            <div className="text-xs text-text-muted font-semibold mb-6">Overall Score</div>
+            <div className="text-xs text-text-muted font-semibold mb-6">综合评分</div>
 
             <div className="space-y-2.5">
               {Object.entries(report.final_scores ?? {}).map(([dim, score]) => {
@@ -174,7 +182,7 @@ export default function SharedReportPage() {
           </div>
 
           <div className="card p-5">
-            <h3 className="text-xs text-text-muted font-semibold mb-2">Dimension Radar</h3>
+            <h3 className="text-xs text-text-muted font-semibold mb-2">维度雷达</h3>
             <RadarChart scores={report.final_scores ?? {}} size="lg" />
             {r?.overall_assessment && (
               <div className="mt-4 p-3 rounded-xl bg-surface-2 border border-border">
@@ -190,7 +198,7 @@ export default function SharedReportPage() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle className="h-4 w-4 text-danger" />
-              <h2 className="text-base font-display font-bold text-text-primary">Risks</h2>
+              <h2 className="text-base font-display font-bold text-text-primary">主要风险</h2>
             </div>
             <div className="space-y-2">
               {r.risks.map((risk, i) => {
@@ -212,7 +220,7 @@ export default function SharedReportPage() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-4 w-4 text-accent" />
-              <h2 className="text-base font-display font-bold text-text-primary">Improvements</h2>
+              <h2 className="text-base font-display font-bold text-text-primary">改进建议</h2>
             </div>
             <div className="space-y-2">
               {r.improvements.map((item, i) => (
@@ -231,12 +239,13 @@ export default function SharedReportPage() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Quote className="h-4 w-4 text-accent" />
-              <h2 className="text-base font-display font-bold text-text-primary">Key Insights</h2>
+              <h2 className="text-base font-display font-bold text-text-primary">关键洞察</h2>
             </div>
             <div className="space-y-2.5">
               {r.highlights.map((h, i) => {
                 const agentKey = h.agent.toLowerCase().replace(/\s+/g, "_");
                 const agentColor = AGENT_COLOR_MAP[agentKey] ?? "#7C3AED";
+                const agentLabel = AGENT_LABEL_MAP[agentKey] ?? h.agent;
                 return (
                   <div
                     key={i}
@@ -244,7 +253,7 @@ export default function SharedReportPage() {
                     style={{ borderLeftColor: `${agentColor}30`, borderLeftWidth: 3 }}
                   >
                     <span className="text-xs font-bold block mb-1" style={{ color: agentColor }}>
-                      {h.agent}
+                      {agentLabel}
                     </span>
                     <p className="text-sm text-text-secondary leading-relaxed">{h.point}</p>
                   </div>
@@ -256,7 +265,7 @@ export default function SharedReportPage() {
 
         <div className="text-center pt-4 pb-12">
           <a href="/" className="inline-flex items-center gap-2 px-6 py-2.5 text-sm btn-primary cursor-pointer">
-            <span>Try Startup Arena</span>
+            <span>去 Startup Arena 继续评估</span>
           </a>
         </div>
       </div>

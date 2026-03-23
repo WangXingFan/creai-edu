@@ -12,6 +12,7 @@ import {
   Handshake,
   AlertTriangle,
   Radio,
+  Search,
 } from "lucide-react";
 import { useDebateSocket } from "@/hooks/useDebateSocket";
 import DebateStream from "@/components/DebateStream";
@@ -20,6 +21,7 @@ import ConnectionToast from "@/components/ConnectionToast";
 import ThemeToggle from "@/components/ThemeToggle";
 import BottomSheet from "@/components/BottomSheet";
 import { SkeletonMessage } from "@/components/Skeleton";
+import MarkdownContent from "@/components/MarkdownContent";
 
 export default function DebatePage() {
   const params = useParams();
@@ -39,6 +41,8 @@ export default function DebatePage() {
     report,
     summaries,
     connectionState,
+    searchResult,
+    searchProviderLabel,
     sendMessage,
   } = useDebateSocket(debateId);
 
@@ -109,6 +113,7 @@ export default function DebatePage() {
             />
             <span className="text-xs text-text-secondary font-medium">
               {status === "connecting" && "连接中..."}
+              {status === "searching" && "搜索市场数据..."}
               {status === "debating" && `第 ${currentRound} 轮 · 进行中`}
               {status === "completed" && "评估完成"}
               {status === "error" && "连接中断"}
@@ -138,6 +143,27 @@ export default function DebatePage() {
               {[1, 2, 3].map((i) => (
                 <SkeletonMessage key={i} />
               ))}
+            </motion.div>
+          )}
+
+          {(status === "searching" || searchResult) && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card p-4 mb-4"
+              style={{ borderLeft: "3px solid var(--accent)" }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Search className={`h-3.5 w-3.5 text-accent ${status === "searching" ? "animate-pulse" : ""}`} />
+                <span className="text-xs font-bold text-accent">市场调研数据</span>
+                <span className="text-[10px] text-text-muted font-mono">via {searchProviderLabel}</span>
+                {status === "searching" && (
+                  <span className="text-[10px] text-accent animate-pulse">搜索中...</span>
+                )}
+              </div>
+              <MarkdownContent className={status === "searching" ? "typing-cursor" : undefined}>
+                {searchResult || ""}
+              </MarkdownContent>
             </motion.div>
           )}
 

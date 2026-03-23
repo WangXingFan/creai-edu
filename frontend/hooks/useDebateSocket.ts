@@ -13,6 +13,7 @@ interface DebateEvent {
   scores?: Record<string, number>;
   round?: number;
   max_rounds?: number;
+  error?: string;
   summary?: {
     consensus: string[];
     disputes: string[];
@@ -22,6 +23,7 @@ interface DebateEvent {
   report?: Record<string, unknown>;
   final_scores?: Record<string, number>;
   message?: string;
+  search_provider_label?: string;
 }
 
 export type ConnectionState = "connected" | "reconnecting" | "lost";
@@ -32,10 +34,12 @@ interface UseDebateSocketReturn {
   currentRound: number;
   maxRounds: number;
   convergenceRound: number | null;
-  status: "connecting" | "debating" | "completed" | "error";
+  status: "connecting" | "searching" | "debating" | "completed" | "error";
   report: Record<string, unknown> | null;
   summaries: RoundSummary[];
   connectionState: ConnectionState;
+  searchResult: string | null;
+  searchProviderLabel: string;
   sendMessage: (content: string) => void;
 }
 
@@ -80,6 +84,8 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [summaries, setSummaries] = useState<RoundSummary[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connected");
+  const [searchResult, setSearchResult] = useState<string | null>(null);
+  const [searchProviderLabel, setSearchProviderLabel] = useState("联网搜索");
   const wsRef = useRef<WebSocket | null>(null);
   const streamingRef = useRef<Map<string, string>>(new Map());
   const reconnectAttemptRef = useRef(0);
@@ -87,6 +93,27 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
 
   const handleEvent = useCallback((event: DebateEvent) => {
     switch (event.type) {
+      case "search_start":
+        setStatus("searching");
+        setSearchResult("");
+        if (event.search_provider_label) {
+          setSearchProviderLabel(event.search_provider_label);
+        }
+        break;
+
+      case "search_token":
+        if (event.token) {
+          setSearchResult((prev) => (prev ?? "") + event.token!);
+        }
+        break;
+
+      case "search_complete":
+        setSearchResult(event.content ?? null);
+        if (event.search_provider_label) {
+          setSearchProviderLabel(event.search_provider_label);
+        }
+        break;
+
       case "debate_start":
         setStatus("debating");
         break;
@@ -156,6 +183,30 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         }
         break;
 
+      case "agent_error":
+        if (event.agent) {
+          setMessages((prev) => {
+            const idx = prev.findLastIndex(
+              (m) => m.agent === event.agent && m.round === event.round
+            );
+            if (idx === -1) return prev;
+            const copy = [...prev];
+            const existing = event.content ?? copy[idx].content;
+            const errorText = event.message
+              ? `\n\n> 调用失败：${event.message}`
+              : "\n\n> 调用失败";
+            copy[idx] = {
+              ...copy[idx],
+              modelKey: event.model_key ?? copy[idx].modelKey,
+              modelName: event.model_name ?? copy[idx].modelName,
+              content: `${existing}${errorText}`.trim(),
+              isStreaming: false,
+            };
+            return copy;
+          });
+        }
+        break;
+
       case "score_update":
         if (event.scores) {
           setScores(event.scores);
@@ -189,6 +240,17 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
 
       case "error":
         setStatus("error");
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.isStreaming
+              ? {
+                  ...message,
+                  isStreaming: false,
+                  content: message.content || "> 调用已中断",
+                }
+              : message
+          )
+        );
         console.error("Debate error:", event.message);
         break;
     }
@@ -275,6 +337,8 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
     report,
     summaries,
     connectionState,
+    searchResult,
+    searchProviderLabel,
     sendMessage,
   };
 }

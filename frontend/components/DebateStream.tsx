@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import ReactMarkdown from "react-markdown";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { AGENT_COLORS, type DebateMessage } from "@/hooks/useDebateSocket";
 import { getDimensionLabel } from "@/lib/dimensions";
 import { AGENT_AVATARS } from "@/components/AgentAvatars";
+import MarkdownContent from "@/components/MarkdownContent";
 
 interface DebateStreamProps {
   messages: DebateMessage[];
@@ -14,40 +14,6 @@ interface DebateStreamProps {
 }
 
 const COLLAPSE_THRESHOLD = 300;
-
-const mdComponents = {
-  h1: ({ children }: any) => (
-    <h3 className="text-sm font-semibold text-text-primary mt-2 mb-1">{children}</h3>
-  ),
-  h2: ({ children }: any) => (
-    <h4 className="text-sm font-semibold text-text-primary mt-2 mb-1">{children}</h4>
-  ),
-  h3: ({ children }: any) => (
-    <h5 className="text-sm font-medium text-text-primary mt-1.5 mb-0.5">{children}</h5>
-  ),
-  p: ({ children }: any) => <p className="mb-1.5 last:mb-0">{children}</p>,
-  ul: ({ children }: any) => (
-    <ul className="ml-4 mb-1.5 space-y-0.5 list-disc marker:text-text-muted">{children}</ul>
-  ),
-  ol: ({ children }: any) => (
-    <ol className="ml-4 mb-1.5 space-y-0.5 list-decimal marker:text-text-muted">{children}</ol>
-  ),
-  li: ({ children }: any) => <li className="pl-0.5">{children}</li>,
-  strong: ({ children }: any) => (
-    <strong className="font-semibold text-text-primary">{children}</strong>
-  ),
-  em: ({ children }: any) => <em className="text-text-tertiary italic">{children}</em>,
-  blockquote: ({ children }: any) => (
-    <blockquote className="border-l-2 border-accent/30 pl-3 my-1.5 text-text-tertiary italic">
-      {children}
-    </blockquote>
-  ),
-  code: ({ children }: any) => (
-    <code className="text-xs px-1.5 py-0.5 rounded bg-surface-2 text-accent font-mono">
-      {children}
-    </code>
-  ),
-};
 
 const AGENT_ROLE_LABELS: Record<string, string> = {
   investor: "天使投资人",
@@ -57,17 +23,13 @@ const AGENT_ROLE_LABELS: Record<string, string> = {
   orchestrator: "裁判官",
 };
 
-function MessageCard({ msg, index }: { msg: DebateMessage; index: number }) {
+function MessageCard({ msg }: { msg: DebateMessage }) {
   const color = AGENT_COLORS[msg.agent] ?? "#0052FF";
   const Avatar = AGENT_AVATARS[msg.agent];
   const isLong = msg.content.length > COLLAPSE_THRESHOLD && !msg.isStreaming;
   const [expanded, setExpanded] = useState(false);
   const isOrchestrator = msg.agent === "orchestrator";
-
-  const displayText =
-    isLong && !expanded
-      ? msg.content.slice(0, COLLAPSE_THRESHOLD) + "..."
-      : msg.content;
+  const isCollapsed = isLong && !expanded;
 
   return (
     <motion.div
@@ -106,11 +68,23 @@ function MessageCard({ msg, index }: { msg: DebateMessage; index: number }) {
           <span className="text-[10px] text-text-muted font-mono">R{msg.round}</span>
         </div>
 
-        <div className="text-[13px] leading-[1.7] text-text-secondary">
+        <div>
           {msg.isStreaming ? (
-            <p className="typing-cursor">{msg.content || "思考中..."}</p>
+            <p className="text-[13px] leading-[1.7] text-text-secondary typing-cursor">
+              {msg.content || "思考中..."}
+            </p>
           ) : (
-            <ReactMarkdown components={mdComponents}>{displayText}</ReactMarkdown>
+            <div className="relative">
+              <div
+                className={isCollapsed ? "overflow-hidden" : undefined}
+                style={isCollapsed ? { maxHeight: "15rem" } : undefined}
+              >
+                <MarkdownContent>{msg.content}</MarkdownContent>
+              </div>
+              {isCollapsed && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[var(--bg-1)] to-transparent" />
+              )}
+            </div>
           )}
         </div>
 
@@ -176,7 +150,7 @@ export default function DebateStream({ messages, currentRound }: DebateStreamPro
             </motion.div>
             <div className="space-y-3">
               {msgs.map((msg, i) => (
-                <MessageCard key={`${msg.agent}-${msg.round}-${i}`} msg={msg} index={i} />
+                <MessageCard key={`${msg.agent}-${msg.round}-${i}`} msg={msg} />
               ))}
             </div>
           </div>

@@ -34,7 +34,7 @@ Previous Discussion: {context}
 4. If responding to other agents, add competitive context to their analysis
 5. Provide your scores
 
-IMPORTANT: Keep your response concise — no more than 150 words. Use bullet points. No filler text. Get straight to the point.
+IMPORTANT: Keep your response tight but not overly compressed. Use 4-6 bullet points, around 220-320 Chinese characters total. Each bullet should name a concrete competitor, positioning difference, barrier, or timing signal. No filler text.
 
 Respond in Chinese. End your response with scores:
 ```scores

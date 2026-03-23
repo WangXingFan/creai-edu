@@ -32,7 +32,7 @@ Previous Discussion: {context}
 3. If responding to other agents, engage with their points (agree/disagree with reasoning)
 4. Provide your scores in JSON format at the end of your response
 
-IMPORTANT: Keep your response concise — no more than 150 words. Use bullet points. No filler text. Get straight to the point.
+IMPORTANT: Keep your response tight but not overly compressed. Use 4-6 bullet points, around 220-320 Chinese characters total. Each bullet should contain a concrete judgment, number, risk, or example. No filler text.
 
 Respond in Chinese. End your response with scores in this format:
 ```scores

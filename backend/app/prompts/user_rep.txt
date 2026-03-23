@@ -34,7 +34,7 @@ Previous Discussion: {context}
 4. If responding to other agents, bring the user perspective to their technical/business points
 5. Provide your scores
 
-IMPORTANT: Keep your response concise — no more than 150 words. Use bullet points. No filler text. Get straight to the point.
+IMPORTANT: Keep your response tight but not overly compressed. Use 4-6 bullet points, around 220-320 Chinese characters total. Each bullet should contain a concrete scenario, pain point, switching reason, or willingness-to-pay signal. No filler text.
 
 Respond in Chinese. End your response with scores:
 ```scores

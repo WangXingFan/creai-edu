@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from app.tools.search import get_market_search_provider_label, search_market_context
+
 logger = logging.getLogger(__name__)
 
 load_dotenv(
@@ -55,7 +57,16 @@ _MODEL_MAP = {
     "deepseek": lambda: os.getenv("MODEL_DEEPSEEK", "deepseek-chat"),
     "gemini": lambda: os.getenv("MODEL_GEMINI", "gemini-2.0-flash"),
     "glm": lambda: os.getenv("MODEL_GLM", "glm-4-flash"),
+    "grok": lambda: os.getenv("MODEL_GROK", "grok-4.20-beta"),
+    "qwen": lambda: os.getenv("MODEL_QWEN", "qwen3.5-plus"),
+    "kimi": lambda: os.getenv("MODEL_KIMI", "kimi-latest"),
+    "ernie": lambda: os.getenv("MODEL_ERNIE", "ERNIE-X1.1"),
 }
+
+OPENAI_COMPATIBLE_MODEL_PROVIDER = "openai_compatible"
+BAIDU_QIANFAN_MODEL_PROVIDER = "baidu_qianfan"
+_BAIDU_MODEL_ALIASES = {"ernie"}
+_BAIDU_MODEL_PREFIXES = ("ernie", "paddlepaddle/ernie")
 
 
 def _normalize_model_key(model_key: str) -> str:
@@ -71,15 +82,32 @@ def resolve_model_name(model_key: str) -> str:
     return model_name.strip() if isinstance(model_name, str) else str(model_name)
 
 
+def resolve_model_provider(model_key: str, model_name: Optional[str] = None) -> str:
+    """Resolve which upstream provider should handle the requested model."""
+    normalized_key = _normalize_model_key(model_key)
+    resolved_name = (
+        model_name.strip().lower()
+        if isinstance(model_name, str)
+        else resolve_model_name(model_key).lower()
+    )
+    if normalized_key in _BAIDU_MODEL_ALIASES:
+        return BAIDU_QIANFAN_MODEL_PROVIDER
+    if any(resolved_name.startswith(prefix) for prefix in _BAIDU_MODEL_PREFIXES):
+        return BAIDU_QIANFAN_MODEL_PROVIDER
+    return OPENAI_COMPATIBLE_MODEL_PROVIDER
+
+
 def get_agent_runtime_config(agent_key: str) -> dict[str, str]:
     """Return the resolved runtime config for a single agent."""
     defn = _AGENT_DEFS[agent_key]
     model_key = _normalize_model_key(os.getenv(defn["env_key"], defn["default"]))
+    model_name = resolve_model_name(model_key)
     return {
         "agent": agent_key,
         "name": defn["name"],
         "model_key": model_key,
-        "model_name": resolve_model_name(model_key),
+        "model_name": model_name,
+        "provider": resolve_model_provider(model_key, model_name),
         "prompt_file": defn["prompt_file"],
     }
 
@@ -93,8 +121,25 @@ def get_runtime_agent_configs() -> dict[str, dict[str, str]]:
 
 
 def _get_llm(model_key: str):
-    """Get LLM via OpenAI-compatible endpoint. Resolves model key from env."""
+    """Get an LLM client using the correct upstream provider for the model."""
     model_name = resolve_model_name(model_key)
+    provider = resolve_model_provider(model_key, model_name)
+    if provider == BAIDU_QIANFAN_MODEL_PROVIDER:
+        api_key = os.getenv("BAIDU_QIANFAN_API_KEY", "").strip()
+        if not api_key:
+            raise ValueError("BAIDU_QIANFAN_API_KEY is required when using ERNIE models")
+
+        kwargs = {
+            "model": model_name,
+            "api_key": api_key,
+            "base_url": os.getenv("BAIDU_QIANFAN_BASE_URL", "https://qianfan.baidubce.com/v2"),
+            "streaming": True,
+        }
+        app_id = os.getenv("BAIDU_QIANFAN_APP_ID", "").strip()
+        if app_id:
+            kwargs["default_headers"] = {"appid": app_id}
+        return ChatOpenAI(**kwargs)
+
     return ChatOpenAI(
         model=model_name,
         api_key=os.getenv("API_KEY"),
@@ -186,17 +231,32 @@ async def _invoke_agent(
             "round": current_round,
         })
 
-    async for chunk in llm.astream(messages):
-        token = chunk.content
-        full_response += token
+    try:
+        async for chunk in llm.astream(messages):
+            token = chunk.content
+            full_response += token
+            if on_event:
+                await on_event({
+                    "type": "agent_token",
+                    "agent": agent_key,
+                    "agent_name": config["name"],
+                    "token": token,
+                    "round": current_round,
+                })
+    except Exception as exc:
+        logger.exception("Agent %s failed in round %s", agent_key, current_round)
         if on_event:
             await on_event({
-                "type": "agent_token",
+                "type": "agent_error",
                 "agent": agent_key,
                 "agent_name": config["name"],
-                "token": token,
+                "model_key": runtime_config["model_key"],
+                "model_name": runtime_config["model_name"],
+                "content": full_response,
+                "message": str(exc),
                 "round": current_round,
             })
+        raise
 
     # Parse scores from response
     scores = _parse_scores(full_response)
@@ -319,6 +379,28 @@ async def run_debate(
     all_scores = []
     debate_agents = ["investor", "cto", "user_rep", "competitor"]
 
+    # Phase 0: Grok real-time search for market context
+    search_context = ""
+    search_provider_label = get_market_search_provider_label()
+    try:
+        if on_event:
+            await on_event({
+                "type": "search_start",
+                "message": "正在搜索市场数据...",
+                "search_provider_label": search_provider_label,
+            })
+        search_result = await search_market_context(idea, on_event=on_event)
+        search_context = search_result.content
+        search_provider_label = search_result.provider_label
+        if search_context and on_event:
+            await on_event({
+                "type": "search_complete",
+                "content": search_context,
+                "search_provider_label": search_provider_label,
+            })
+    except Exception as e:
+        logger.warning(f"Search phase failed, continuing without: {e}")
+
     for round_num in range(1, max_rounds + 1):
         if on_event:
             await on_event({
@@ -335,6 +417,11 @@ async def run_debate(
                 f"[Round {t['round']}] {t['agent_name']}: {t['content']}"
                 for t in recent
             )
+
+        # Prepend search context (available to all rounds)
+        if search_context:
+            search_header = f"【市场调研数据 ({search_provider_label})】\n{search_context}"
+            context = f"{search_header}\n\n{context}" if context else search_header
 
         # Run debate agents SEQUENTIALLY so each agent sees previous agents' responses
         # This creates a real debate: investor speaks → CTO rebuts → user reacts → competitor adds
