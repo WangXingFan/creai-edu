@@ -1,18 +1,25 @@
 """Debate REST API routes."""
+import logging
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_session
+from app.graph.debate_graph import _get_llm, resolve_model_name
 from app.models.debate import Debate, DebateStatus
 from app.models.schemas import (
     DebateListResponse,
     DebateResponse,
     DebateStartRequest,
+    PolishRequest,
+    PolishResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -139,3 +146,39 @@ async def get_shared_report(
         "final_scores": debate.final_scores,
         "completed_at": debate.completed_at,
     }
+
+
+_POLISH_SYSTEM_PROMPT = """你是一位资深创业顾问，擅长将模糊的创业想法润色为清晰、有吸引力的项目描述。
+
+**你的任务**：对用户输入的创业想法进行润色和扩展，使其更加清晰、专业、有说服力。
+
+**润色规则**：
+1. 保留用户的核心创意和方向，不要篡改原意
+2. 补充目标用户群体（如果原文没有明确）
+3. 突出核心痛点和解决方案
+4. 语言简洁有力，避免空洞的修饰词
+5. 控制在 200 字以内
+6. 直接输出润色后的文本，不要加任何前缀说明或引号"""
+
+
+@router.post("/polish", response_model=PolishResponse)
+async def polish_idea(request: PolishRequest):
+    """Use AI to polish a rough startup idea into a clear description."""
+    import os
+
+    model_key = os.getenv("ROLE_POLISHER", "deepseek")
+    try:
+        llm = _get_llm(model_key)
+        response = await llm.ainvoke([
+            SystemMessage(content=_POLISH_SYSTEM_PROMPT),
+            HumanMessage(content=request.idea),
+        ])
+        polished = response.content.strip()
+        # Strip wrapping quotes if the model adds them
+        if (polished.startswith('"') and polished.endswith('"')) or \
+           (polished.startswith("「") and polished.endswith("」")):
+            polished = polished[1:-1].strip()
+        return PolishResponse(polished=polished)
+    except Exception as e:
+        logger.error("Polish failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"AI polish failed: {str(e)}")

@@ -5,6 +5,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class PolishRequest(BaseModel):
+    idea: str = Field(..., min_length=2, max_length=2000, description="Raw startup idea to polish")
+
+
+class PolishResponse(BaseModel):
+    polished: str = Field(..., description="AI-polished startup idea")
+
+
 class DebateStartRequest(BaseModel):
     idea: str = Field(..., min_length=2, max_length=2000, description="Startup idea description")
     max_rounds: int = Field(default=3, ge=1, le=5, description="Maximum debate rounds")

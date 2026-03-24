@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, Zap } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, Zap } from "lucide-react";
 
 interface IdeaInputProps {
   onSubmit: (idea: string) => void;
@@ -18,10 +18,30 @@ const EXAMPLE_IDEAS = [
 export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
   const [idea, setIdea] = useState("");
   const [focused, setFocused] = useState(false);
+  const [polishing, setPolishing] = useState(false);
 
   const handleSubmit = () => {
     if (idea.trim() && !loading) {
       onSubmit(idea.trim());
+    }
+  };
+
+  const handlePolish = async () => {
+    if (!idea.trim() || polishing || loading) return;
+    setPolishing(true);
+    try {
+      const res = await fetch("/api/polish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea: idea.trim() }),
+      });
+      if (!res.ok) throw new Error("Polish failed");
+      const data = await res.json();
+      setIdea(data.polished);
+    } catch (err) {
+      console.error("Failed to polish idea:", err);
+    } finally {
+      setPolishing(false);
     }
   };
 
@@ -54,7 +74,29 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
           `}
           maxLength={2000}
         />
-        <div className="absolute bottom-3 right-3">
+        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          {/* AI Polish button */}
+          <button
+            onClick={handlePolish}
+            disabled={!idea.trim() || polishing || loading}
+            title="AI 润色"
+            className={`
+              flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium
+              transition-all duration-200 cursor-pointer
+              ${
+                idea.trim() && !polishing && !loading
+                  ? "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20"
+                  : "bg-transparent text-text-muted/40 cursor-not-allowed"
+              }
+            `}
+          >
+            {polishing ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            <span>{polishing ? "润色中" : "AI 润色"}</span>
+          </button>
           <span className="text-[11px] text-text-muted font-mono tabular-nums">
             {idea.length}/2000
           </span>
