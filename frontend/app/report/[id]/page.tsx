@@ -23,12 +23,24 @@ import ShareButton from "@/components/ShareButton";
 interface Report {
   debate_id: string;
   idea: string;
+  evidence_board?: Array<{
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+    agent_name: string;
+  }>;
   report: {
     overall_assessment?: string;
     dimension_scores?: Record<string, number>;
     risks?: Array<{ risk: string; severity: string }>;
     improvements?: string[];
     highlights?: Array<{ agent: string; point: string }>;
+    evidence_chain?: Array<{
+      claim: string;
+      evidence_ids: string[];
+      why_it_matters: string;
+    }>;
   };
   final_scores: Record<string, number>;
   completed_at: string;
@@ -125,6 +137,8 @@ export default function ReportPage() {
   const imageImprovements = (r?.improvements ?? []).slice(0, 4);
   const imageHighlights = (r?.highlights ?? []).slice(0, 3);
   const imageSummary = (r?.overall_assessment ?? "").trim();
+  const evidenceLookup = new Map((report.evidence_board ?? []).map((item) => [item.id, item]));
+  const evidenceChain = r?.evidence_chain ?? [];
 
   const handleExport = async (kind: "image" | "pdf") => {
     try {
@@ -494,6 +508,55 @@ export default function ReportPage() {
                     </motion.div>
                   );
                 })}
+              </div>
+            </motion.div>
+          )}
+
+          {evidenceChain.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-8"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-4 w-4 text-accent" />
+                <h2 className="text-base font-display font-bold text-text-primary">证据链</h2>
+              </div>
+              <div className="space-y-3">
+                {evidenceChain.map((item, i) => (
+                  <motion.div
+                    key={`${item.claim}-${i}`}
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.55 + i * 0.04 }}
+                    className="card px-4 py-4"
+                  >
+                    <div className="text-[11px] font-bold text-accent mb-2 font-mono tabular-nums">
+                      CLAIM {String(i + 1).padStart(2, "0")}
+                    </div>
+                    <p className="text-sm text-text-primary font-semibold leading-relaxed mb-2">
+                      {item.claim}
+                    </p>
+                    <p className="text-sm text-text-secondary leading-relaxed">{item.why_it_matters}</p>
+                    {item.evidence_ids.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {item.evidence_ids.map((evidenceId) => {
+                          const evidence = evidenceLookup.get(evidenceId);
+                          return (
+                            <span
+                              key={evidenceId}
+                              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-secondary"
+                            >
+                              <span className="font-mono text-text-muted">{evidenceId.slice(-4)}</span>
+                              <span>{evidence?.title ?? evidenceId}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
               </div>
             </motion.div>
           )}

@@ -13,6 +13,7 @@ import {
   Inbox,
   Trash2,
   X,
+  Database,
 } from "lucide-react";
 import { formatBeijingTime } from "@/lib/datetime";
 import { SkeletonCard } from "@/components/Skeleton";
@@ -26,6 +27,8 @@ interface DebateItem {
   max_rounds: number;
   created_at: string;
   final_scores: Record<string, number> | null;
+  has_cache?: boolean;
+  has_event_data?: boolean;
 }
 
 export default function HistoryPage() {
@@ -33,6 +36,11 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [togglingCacheId, setTogglingCacheId] = useState<string | null>(null);
+  const [cacheNotice, setCacheNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/debates")
@@ -43,6 +51,61 @@ export default function HistoryPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!cacheNotice) return;
+    const timer = window.setTimeout(() => setCacheNotice(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [cacheNotice]);
+
+  const getCacheErrorMessage = (status: number, detail?: string) => {
+    if (status === 404) {
+      return "当前后端还没启用缓存接口，请重启后端服务后再试";
+    }
+    if (detail === "No event data available to cache") {
+      return "这条历史记录暂时没有可回放的缓存数据";
+    }
+    if (detail === "Only completed debates can be cached") {
+      return "只有已完成的评估才能加入缓存";
+    }
+    return "缓存操作失败，请稍后重试";
+  };
+
+  const handleToggleCache = async (debate: DebateItem) => {
+    setTogglingCacheId(debate.id);
+    setCacheNotice(null);
+    try {
+      const method = debate.has_cache ? "DELETE" : "POST";
+      const res = await fetch(`/api/debate/${debate.id}/cache`, { method });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setCacheNotice({
+          type: "error",
+          message: getCacheErrorMessage(res.status, payload?.detail),
+        });
+        return;
+      }
+
+      setDebates((prev) =>
+        prev.map((d) =>
+          d.id === debate.id ? { ...d, has_cache: !d.has_cache } : d
+        )
+      );
+      setCacheNotice({
+        type: "success",
+        message: debate.has_cache ? "已取消缓存" : "已加入缓存，可用于同题快速回放",
+      });
+    } catch (err) {
+      console.error("Failed to toggle cache:", err);
+      setCacheNotice({
+        type: "error",
+        message: "缓存操作失败，请检查网络后重试",
+      });
+    } finally {
+      setTogglingCacheId(null);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -99,6 +162,10 @@ export default function HistoryPage() {
     );
   };
 
+  const hasCompletedDebates = debates.some(
+    (debate) => debate.status === "completed"
+  );
+
   return (
     <div className="min-h-screen p-4 sm:p-6 max-w-3xl mx-auto relative">
       <div className="arena-bg" />
@@ -116,17 +183,44 @@ export default function HistoryPage() {
           <span className="text-text-secondary font-medium">历史记录</span>
         </div>
 
-        <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-xl font-display font-extrabold text-text-primary">历史评估</h1>
-          {debates.length > 0 && (
-            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-accent/6 text-accent font-bold border border-accent/12 font-mono tabular-nums">
-              {debates.length}
-            </span>
-          )}
-          <div className="ml-auto">
-            <ThemeToggle />
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-display font-extrabold text-text-primary">历史评估</h1>
+            {debates.length > 0 && (
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-accent/6 text-accent font-bold border border-accent/12 font-mono tabular-nums">
+                {debates.length}
+              </span>
+            )}
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </div>
+
+          {hasCompletedDebates && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-text-secondary">
+                <Database className="h-3 w-3" />
+                右侧显示缓存状态
+              </span>
+              <span>支持的记录可一键加入缓存，用于同题快速回放</span>
+            </div>
+          )}
         </div>
+
+        {cacheNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+              cacheNotice.type === "success"
+                ? "border-success/20 bg-success/6 text-success"
+                : "border-warning/20 bg-warning/6 text-warning"
+            }`}
+          >
+            {cacheNotice.message}
+          </motion.div>
+        )}
 
         {loading ? (
           <div className="space-y-2.5">
@@ -214,7 +308,7 @@ export default function HistoryPage() {
                         </div>
                       </a>
 
-                      {/* Right side: badge + score + delete + arrow */}
+                      {/* Right side: badge + score + cache + delete + arrow */}
                       <div className="flex items-center gap-2.5 shrink-0">
                         {getStatusBadge(debate.status)}
                         {score !== null && (
@@ -222,6 +316,46 @@ export default function HistoryPage() {
                             {score}
                           </span>
                         )}
+                        {debate.status === "completed" &&
+                          debate.has_event_data === false && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-muted">
+                              <Database className="h-3.5 w-3.5" />
+                              无缓存数据
+                            </span>
+                          )}
+                        {debate.status === "completed" &&
+                          debate.has_event_data !== false && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleToggleCache(debate);
+                            }}
+                            disabled={togglingCacheId === debate.id}
+                            aria-pressed={debate.has_cache}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                              debate.has_cache
+                                ? "border-accent/20 bg-accent/10 text-accent hover:bg-accent/15"
+                                : "border-border bg-surface-2 text-text-secondary hover:border-accent/20 hover:bg-accent/6 hover:text-accent"
+                            }`}
+                            title={debate.has_cache ? "取消缓存" : "存为缓存"}
+                          >
+                            {togglingCacheId === debate.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Database className="h-3.5 w-3.5" />
+                            )}
+                            <span>
+                              {togglingCacheId === debate.id
+                                ? debate.has_cache
+                                  ? "取消中"
+                                  : "保存中"
+                                : debate.has_cache
+                                  ? "已缓存"
+                                  : "存为缓存"}
+                            </span>
+                          </button>
+                          )}
                         <button
                           onClick={(e) => {
                             e.preventDefault();

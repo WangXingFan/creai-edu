@@ -102,7 +102,6 @@ def _get_search_provider() -> str:
     aliases = {
         "openai": OPENAI_COMPATIBLE_PROVIDER,
         "openai_compatible": OPENAI_COMPATIBLE_PROVIDER,
-        "grok": OPENAI_COMPATIBLE_PROVIDER,
         "baidu": BAIDU_QIANFAN_PROVIDER,
         "qianfan": BAIDU_QIANFAN_PROVIDER,
         "baidu_qianfan": BAIDU_QIANFAN_PROVIDER,
@@ -128,7 +127,7 @@ def _build_openai_compatible_request(idea: str) -> tuple[str, dict[str, str], di
         "Content-Type": "application/json",
     }
     payload = {
-        "model": os.getenv("MARKET_SEARCH_MODEL") or os.getenv("MODEL_GROK", "grok-4.20-beta"),
+        "model": os.getenv("MARKET_SEARCH_MODEL") or os.getenv("MODEL_DEEPSEEK", "deepseek-chat"),
         "messages": [
             {"role": "system", "content": SEARCH_SYSTEM_PROMPT},
             {"role": "user", "content": f"调研：{idea}"},

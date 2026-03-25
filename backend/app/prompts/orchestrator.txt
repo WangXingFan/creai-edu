@@ -21,6 +21,7 @@ When the debate concludes, produce a structured report:
 3. **Key Risks**: Top 3-5 risks with severity (high/medium/low)
 4. **Improvement Suggestions**: Top 5 actionable improvements
 5. **Debate Highlights**: Most insightful points from each agent
+6. **Evidence Chain**: 3-5 key claims, each linked to evidence IDs and why they matter
 
 ## Current Debate Context
 Startup Idea: {idea}
@@ -38,5 +39,5 @@ For round summaries:
 
 For final reports:
 ```report
-{{"overall_assessment": "...", "dimension_scores": {{}}, "risks": [{{"risk": "...", "severity": "high/medium/low"}}], "improvements": ["..."], "highlights": [{{"agent": "...", "point": "..."}}]}}
+{{"overall_assessment": "...", "dimension_scores": {{}}, "risks": [{{"risk": "...", "severity": "high/medium/low"}}], "improvements": ["..."], "highlights": [{{"agent": "...", "point": "..."}}], "evidence_chain": [{{"claim": "...", "evidence_ids": ["evidence_x"], "why_it_matters": "..."}}]}}
 ```

@@ -1,6 +1,6 @@
 """Pydantic schemas for API request/response validation."""
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -46,6 +46,7 @@ class DebateReport(BaseModel):
     risks: list[dict[str, str]]
     improvements: list[str]
     highlights: list[dict[str, str]]
+    evidence_chain: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DebateResponse(BaseModel):
@@ -54,9 +55,13 @@ class DebateResponse(BaseModel):
     status: str
     current_round: int
     max_rounds: int
+    step_count: int = 0
+    halt_reason: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
     final_scores: Optional[dict] = None
+    has_cache: bool = False
+    has_event_data: bool = False
 
     class Config:
         from_attributes = True

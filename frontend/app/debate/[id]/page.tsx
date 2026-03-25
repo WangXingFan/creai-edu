@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ import {
   AlertTriangle,
   Radio,
   Search,
+  Wrench,
 } from "lucide-react";
 import { useDebateSocket } from "@/hooks/useDebateSocket";
 import DebateStream from "@/components/DebateStream";
@@ -33,9 +35,14 @@ export default function DebatePage() {
 
   const {
     messages,
+    timeline,
     scores,
     currentRound,
     maxRounds,
+    stepCount,
+    activeTask,
+    haltReason,
+    openQuestions,
     convergenceRound,
     summarizingRound,
     isGeneratingReport,
@@ -43,10 +50,18 @@ export default function DebatePage() {
     report,
     summaries,
     connectionState,
+    pendingTool,
     searchResult,
     searchProviderLabel,
     sendMessage,
   } = useDebateSocket(debateId);
+
+  const pendingToolStatusText =
+    pendingTool?.name === "market_search"
+      ? "正在联网搜索补充市场证据"
+      : pendingTool
+        ? `正在执行 ${pendingTool.title}`
+        : null;
 
   useEffect(() => {
     const newCount = messages.length;
@@ -80,12 +95,12 @@ export default function DebatePage() {
       {/* Header */}
       <header className="border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between bg-[var(--bg-1)]/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <a
+          <Link
             href="/"
             className="text-text-muted hover:text-text-secondary transition-colors cursor-pointer p-1 -ml-1"
           >
             <ArrowLeft className="h-4 w-4" />
-          </a>
+          </Link>
           <h1 className="text-sm font-display font-bold gradient-text">
             Startup Arena
           </h1>
@@ -122,9 +137,10 @@ export default function DebatePage() {
             <span className="text-xs text-text-secondary font-medium">
               {status === "connecting" && "连接中..."}
               {status === "searching" && "搜索市场数据..."}
+              {status === "debating" && pendingToolStatusText && pendingToolStatusText}
               {status === "debating" && isGeneratingReport && "最终报告生成中"}
-              {status === "debating" && !isGeneratingReport && summarizingRound !== null && `第 ${summarizingRound} 轮 · 总结中`}
-              {status === "debating" && !isGeneratingReport && summarizingRound === null && `第 ${currentRound} 轮 · 进行中`}
+              {status === "debating" && !pendingToolStatusText && !isGeneratingReport && summarizingRound !== null && `第 ${summarizingRound} 轮 · 总结中`}
+              {status === "debating" && !pendingToolStatusText && !isGeneratingReport && summarizingRound === null && `第 ${currentRound} 轮 · Step ${stepCount}`}
               {status === "completed" && "评估完成"}
               {status === "error" && "连接中断"}
             </span>
@@ -177,7 +193,73 @@ export default function DebatePage() {
             </motion.div>
           )}
 
-          <DebateStream messages={messages} currentRound={currentRound} />
+          {pendingTool && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card p-4 mb-4"
+              style={{ borderLeft: "3px solid #2563EB" }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[rgba(37,99,235,0.08)] text-[#2563EB]">
+                  {pendingTool.name === "market_search" ? (
+                    <Search className="h-4 w-4 animate-pulse" />
+                  ) : (
+                    <Wrench className="h-4 w-4 animate-pulse" />
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-xs font-bold text-[#2563EB]">
+                      工具执行中
+                    </span>
+                    <span className="text-[10px] text-text-muted font-mono">
+                      S{pendingTool.step}
+                    </span>
+                    {pendingTool.agent_name && (
+                      <span className="text-[10px] text-text-muted">
+                        {pendingTool.agent_name}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm font-semibold text-text-primary">
+                    {pendingTool.title}
+                  </p>
+
+                  <p className="mt-1 text-[13px] leading-6 text-text-secondary">
+                    {pendingTool.name === "market_search"
+                      ? "正在联网检索补充证据，这一步通常会明显慢于普通角色发言。"
+                      : "工具正在补充结构化证据，请稍等当前步骤执行完成。"}
+                  </p>
+
+                  {pendingTool.rationale && (
+                    <MarkdownContent className="mt-2 text-[12px] leading-5 text-text-muted [&_p]:mb-0">
+                      {pendingTool.rationale}
+                    </MarkdownContent>
+                  )}
+
+                  {pendingTool.task?.focus && (
+                    <div className="mt-2 rounded-xl border border-border bg-surface-0 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-text-primary">
+                        当前工具目标
+                      </p>
+                      <MarkdownContent className="mt-1 text-[11px] leading-5 text-text-muted [&_p]:mb-0">
+                        {pendingTool.task.focus}
+                      </MarkdownContent>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <DebateStream
+            messages={messages}
+            timeline={timeline}
+            currentRound={currentRound}
+          />
 
           {summarizingRound !== null && (
             <motion.div
@@ -294,20 +376,85 @@ export default function DebatePage() {
               </div>
               <p className="text-text-primary text-lg font-display font-bold mb-1">评估完成</p>
               <p className="text-sm text-text-muted mb-6">评审团已达成最终判定</p>
-              <a
+              <Link
                 href={`/report/${debateId}`}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm btn-primary cursor-pointer"
               >
                 <span>查看评估报告</span>
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
             </motion.div>
           )}
 
           <div ref={streamEndRef} />
         </div>
 
-        <div className="hidden lg:block w-80 border-l border-border p-4 overflow-y-auto bg-surface-0">
+        <div className="hidden lg:block w-80 border-l border-border p-4 overflow-y-auto bg-surface-0 space-y-4">
+          <div className="card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Radio className="h-3.5 w-3.5 text-accent" />
+              <span className="text-xs font-semibold text-text-primary">
+                运行状态
+              </span>
+            </div>
+            <div className="space-y-2 text-[13px] text-text-secondary">
+              <p>当前轮次：第 {currentRound || 0} 轮</p>
+              <p>执行步数：{stepCount}</p>
+              <div className="space-y-1">
+                <p>停止原因：</p>
+                <MarkdownContent className="text-[12px] leading-5 text-text-primary [&_p]:mb-0">
+                  {haltReason || "运行中"}
+                </MarkdownContent>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="h-3.5 w-3.5 text-accent" />
+              <span className="text-xs font-semibold text-text-primary">
+                当前任务
+              </span>
+            </div>
+            {activeTask ? (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-text-primary">
+                  {activeTask.title}
+                </p>
+                <MarkdownContent className="text-[13px] leading-6 text-text-secondary [&_p]:mb-0">
+                  {activeTask.focus}
+                </MarkdownContent>
+                <MarkdownContent className="text-[12px] leading-5 text-text-muted [&_p]:mb-0">
+                  {activeTask.reason}
+                </MarkdownContent>
+              </div>
+            ) : (
+              <p className="text-[13px] text-text-muted">
+                当前没有待执行任务。
+              </p>
+            )}
+          </div>
+
+          {openQuestions.length > 0 && (
+            <div className="card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                <span className="text-xs font-semibold text-text-primary">
+                  待解问题
+                </span>
+              </div>
+              <ul className="space-y-2 text-[13px] leading-6 text-text-secondary">
+                {openQuestions.map((question) => (
+                  <li key={question}>
+                    <MarkdownContent className="[&_p]:mb-0">
+                      {question}
+                    </MarkdownContent>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <ScorePanel scores={scores} currentRound={currentRound} maxRounds={maxRounds} />
         </div>
       </div>

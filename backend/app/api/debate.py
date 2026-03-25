@@ -1,15 +1,14 @@
 """Debate REST API routes."""
 import logging
 import uuid
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from langchain_core.messages import HumanMessage, SystemMessage
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_session
-from app.graph.debate_graph import _get_llm, resolve_model_name
+from app.graph.debate_graph import _get_llm
 from app.models.debate import Debate, DebateStatus
 from app.models.schemas import (
     DebateListResponse,
@@ -22,6 +21,24 @@ from app.models.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _debate_to_response(debate: Debate) -> DebateResponse:
+    """Convert a Debate ORM object to a DebateResponse with has_cache flag."""
+    return DebateResponse(
+        id=debate.id,
+        idea=debate.idea,
+        status=debate.status,
+        current_round=debate.current_round or 0,
+        max_rounds=debate.max_rounds or 3,
+        step_count=debate.step_count or 0,
+        halt_reason=debate.halt_reason,
+        created_at=debate.created_at,
+        completed_at=debate.completed_at,
+        final_scores=debate.final_scores,
+        has_cache=bool(debate.cache_enabled),
+        has_event_data=debate.event_cache is not None and len(debate.event_cache) > 0,
+    )
 
 
 @router.post("/debate/start", response_model=DebateResponse)
@@ -38,7 +55,7 @@ async def start_debate(
     session.add(debate)
     await session.commit()
     await session.refresh(debate)
-    return debate
+    return _debate_to_response(debate)
 
 
 @router.get("/debate/{debate_id}/status", response_model=DebateResponse)
@@ -51,7 +68,7 @@ async def get_debate_status(
     debate = result.scalar_one_or_none()
     if not debate:
         raise HTTPException(status_code=404, detail="Debate not found")
-    return debate
+    return _debate_to_response(debate)
 
 
 @router.get("/debate/{debate_id}/report")
@@ -72,14 +89,20 @@ async def get_debate_report(
         "report": debate.report,
         "final_scores": debate.final_scores,
         "transcript": debate.transcript,
+        "action_trace": debate.action_trace,
+        "evidence_board": debate.evidence_board,
+        "shared_blackboard": debate.shared_blackboard,
+        "agent_states": debate.agent_states,
+        "halt_reason": debate.halt_reason,
+        "step_count": debate.step_count,
         "completed_at": debate.completed_at,
     }
 
 
 @router.get("/debates", response_model=DebateListResponse)
 async def list_debates(
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ):
     """List all debate sessions."""
@@ -87,9 +110,14 @@ async def list_debates(
         select(Debate).order_by(Debate.created_at.desc()).offset(skip).limit(limit)
     )
     debates = result.scalars().all()
-    count_result = await session.execute(select(Debate))
-    total = len(count_result.scalars().all())
-    return DebateListResponse(debates=debates, total=total)
+    count_result = await session.execute(
+        select(func.count()).select_from(Debate)
+    )
+    total = count_result.scalar_one()
+    return DebateListResponse(
+        debates=[_debate_to_response(d) for d in debates],
+        total=total,
+    )
 
 
 @router.delete("/debate/{debate_id}")
@@ -105,6 +133,55 @@ async def delete_debate(
     await session.delete(debate)
     await session.commit()
     return {"message": "Debate deleted"}
+
+
+@router.post("/debate/{debate_id}/cache")
+async def enable_cache(
+    debate_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Enable a completed debate's event cache for demo replay."""
+    result = await session.execute(select(Debate).where(Debate.id == debate_id))
+    debate = result.scalar_one_or_none()
+    if not debate:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    if debate.status != DebateStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Only completed debates can be cached")
+    if not debate.event_cache or len(debate.event_cache) == 0:
+        raise HTTPException(status_code=400, detail="No event data available to cache")
+    debate.cache_enabled = True
+    await session.commit()
+    return {"message": "Cache enabled", "cached": True}
+
+
+@router.delete("/debate/{debate_id}/cache")
+async def disable_cache(
+    debate_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Disable a debate's cache from demo replay."""
+    result = await session.execute(select(Debate).where(Debate.id == debate_id))
+    debate = result.scalar_one_or_none()
+    if not debate:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    debate.cache_enabled = False
+    await session.commit()
+    return {"message": "Cache disabled", "cached": False}
+
+
+@router.delete("/debate/{debate_id}/cache")
+async def disable_cache(
+    debate_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Remove the cached event stream from a debate."""
+    result = await session.execute(select(Debate).where(Debate.id == debate_id))
+    debate = result.scalar_one_or_none()
+    if not debate:
+        raise HTTPException(status_code=404, detail="Debate not found")
+    debate.event_cache = None
+    await session.commit()
+    return {"message": "Cache removed", "cached": False}
 
 
 @router.post("/debate/{debate_id}/share")
@@ -144,6 +221,7 @@ async def get_shared_report(
         "idea": debate.idea,
         "report": debate.report,
         "final_scores": debate.final_scores,
+        "evidence_board": debate.evidence_board,
         "completed_at": debate.completed_at,
     }
 
@@ -181,4 +259,4 @@ async def polish_idea(request: PolishRequest):
         return PolishResponse(polished=polished)
     except Exception as e:
         logger.error("Polish failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"AI polish failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="AI polish failed due to an internal server error.")

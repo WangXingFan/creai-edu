@@ -53,13 +53,24 @@ interface MarkdownContentProps {
   className?: string;
 }
 
+function normalizeMarkdownSource(content: string): string {
+  return content
+    .replace(/\r\n/g, "\n")
+    .replace(
+      /([。！？；：:，,、”"')）\]])[ \t]+(?=(\d+\.\s+|[-*•]\s+|>\s+))/g,
+      "$1\n\n"
+    );
+}
+
 export default function MarkdownContent({
   children,
   className,
 }: MarkdownContentProps) {
   return (
     <div className={clsx("text-[13px] leading-[1.7] text-text-secondary break-words", className)}>
-      <ReactMarkdown components={markdownComponents}>{children}</ReactMarkdown>
+      <ReactMarkdown components={markdownComponents}>
+        {normalizeMarkdownSource(children)}
+      </ReactMarkdown>
     </div>
   );
 }

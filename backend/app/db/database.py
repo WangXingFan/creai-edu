@@ -17,12 +17,29 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Lightweight migration: add share_token column if missing
-    async with engine.begin() as conn:
-        try:
-            await conn.execute(text("SELECT share_token FROM debates LIMIT 1"))
-        except Exception:
-            await conn.execute(text("ALTER TABLE debates ADD COLUMN share_token VARCHAR"))
+    debate_column_types = {
+        "share_token": "VARCHAR",
+        "agent_states": "JSON",
+        "action_trace": "JSON",
+        "evidence_board": "JSON",
+        "shared_blackboard": "JSON",
+        "halt_reason": "TEXT",
+        "step_count": "INTEGER DEFAULT 0",
+        "event_cache": "JSON",
+        "cache_enabled": "BOOLEAN DEFAULT 0",
+    }
+
+    async def ensure_debate_column(column_name: str) -> None:
+        sql_type = debate_column_types[column_name]
+        async with engine.begin() as conn:
+            try:
+                await conn.execute(text(f"SELECT {column_name} FROM debates LIMIT 1"))
+            except Exception:
+                await conn.execute(text(f"ALTER TABLE debates ADD COLUMN {column_name} {sql_type}"))
+
+    # Lightweight migrations for older SQLite databases.
+    for column_name in debate_column_types:
+        await ensure_debate_column(column_name)
 
 
 async def get_session() -> AsyncSession:
