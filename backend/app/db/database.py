@@ -27,6 +27,10 @@ async def init_db():
         "step_count": "INTEGER DEFAULT 0",
         "event_cache": "JSON",
         "cache_enabled": "BOOLEAN DEFAULT 0",
+        # 双创课堂场景：班级与学生归属
+        "class_id": "VARCHAR",
+        "student_name": "VARCHAR",
+        "student_id": "VARCHAR",
     }
 
     async def ensure_debate_column(column_name: str) -> None:
@@ -40,6 +44,15 @@ async def init_db():
     # Lightweight migrations for older SQLite databases.
     for column_name in debate_column_types:
         await ensure_debate_column(column_name)
+
+    # Index on class_id for fast class-scope queries.
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_debates_class_id ON debates (class_id)")
+            )
+        except Exception:
+            pass
 
 
 async def get_session() -> AsyncSession:

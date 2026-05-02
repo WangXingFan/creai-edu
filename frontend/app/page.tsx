@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Clock, Sparkles } from "lucide-react";
+import { Clock, GraduationCap, LogOut, Sparkles, Users } from "lucide-react";
 import {
   InvestorAvatar,
   CTOAvatar,
@@ -12,6 +12,11 @@ import {
 } from "@/components/AgentAvatars";
 import IdeaInput from "@/components/IdeaInput";
 import ThemeToggle from "@/components/ThemeToggle";
+import {
+  clearStudentClassContext,
+  getStudentClassContext,
+  type StudentClassContext,
+} from "@/lib/studentClass";
 
 const AGENTS = [
   {
@@ -47,14 +52,30 @@ const AGENTS = [
 export default function HomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [classCtx, setClassCtx] = useState<StudentClassContext | null>(null);
+
+  useEffect(() => {
+    setClassCtx(getStudentClassContext());
+  }, []);
+
+  const handleExitClassMode = () => {
+    clearStudentClassContext();
+    setClassCtx(null);
+  };
 
   const handleSubmit = async (idea: string) => {
     setLoading(true);
     try {
+      const body: Record<string, unknown> = { idea, max_rounds: 3 };
+      if (classCtx) {
+        body.class_id = classCtx.classId;
+        body.student_name = classCtx.studentName;
+        body.student_id = classCtx.studentId;
+      }
       const res = await fetch("/api/debate/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, max_rounds: 3 }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       router.push(`/debate/${data.id}`);
@@ -75,6 +96,41 @@ export default function HomePage() {
       </div>
 
       <div className="relative z-10 w-full max-w-2xl">
+        {/* Class context banner */}
+        {classCtx && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-2xl border border-accent/20 bg-accent/[0.04] px-4 py-3"
+          >
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <Users className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] text-text-muted mb-0.5">已加入班级</p>
+                <p className="text-sm font-semibold text-text-primary truncate">
+                  {classCtx.className}
+                </p>
+                <p className="text-[11px] text-text-secondary mt-0.5">
+                  {classCtx.studentName}
+                  {classCtx.studentId ? ` · 学号 ${classCtx.studentId}` : ""}
+                  {" · 任课教师 "}
+                  {classCtx.teacherName}
+                </p>
+              </div>
+              <button
+                onClick={handleExitClassMode}
+                title="退出班级身份"
+                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] text-text-muted hover:text-text-secondary hover:border-border-hover transition-colors cursor-pointer"
+              >
+                <LogOut className="h-3 w-3" />
+                退出
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -89,16 +145,19 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent/6 border border-accent/12 text-accent text-xs font-semibold mb-6"
           >
             <Sparkles className="h-3 w-3" />
-            Multi-Agent AI Evaluation
+            高校双创课堂 · 多智能体答辩教练
           </motion.div>
 
           <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-4">
-            <span className="gradient-text-hero">Startup Arena</span>
+            <span className="gradient-text-hero">双创智辩</span>
           </h1>
           <p className="text-sm sm:text-base text-text-secondary leading-relaxed max-w-lg mx-auto">
             提交你的创业想法，4 位 AI 评审官 + 1 位 AI 主持人
             <br className="hidden sm:block" />
-            从商业、技术、用户、竞争四大维度展开多轮深度辩论与评估
+            从市场、技术、用户、竞争四大维度，为「双创课」学生 BP 提供答辩演练与教练反馈
+          </p>
+          <p className="mt-3 text-[11px] text-text-muted leading-relaxed max-w-md mx-auto">
+            本工具由国产大模型（DeepSeek / GLM / Qwen / Kimi / 文心）驱动，输出内容由生成式人工智能（AI）生成，仅供教学参考
           </p>
         </motion.div>
 
@@ -154,7 +213,7 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-center mt-8"
+          className="text-center mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
         >
           <a
             href="/history"
@@ -163,6 +222,34 @@ export default function HomePage() {
             <Clock className="h-3.5 w-3.5" />
             查看历史评估
           </a>
+          {!classCtx && (
+            <a
+              href="/join"
+              className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+            >
+              <Users className="h-3.5 w-3.5" />
+              输入班级码加入
+            </a>
+          )}
+          <a
+            href="/teacher"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors cursor-pointer"
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            教师后台
+          </a>
+        </motion.div>
+
+        {/* Compliance footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-center mt-12 pb-6"
+        >
+          <p className="text-[10px] text-text-muted leading-relaxed max-w-lg mx-auto">
+            ⚠ 合规声明：本应用为高校双创课程教学辅助工具，所有评审发言、轮次小结、最终报告均为生成式人工智能（AI）生成。请遵守《生成式人工智能服务管理暂行办法》，对 AI 生成内容进行人工核验后再用于教学评价。
+          </p>
         </motion.div>
       </div>
     </main>

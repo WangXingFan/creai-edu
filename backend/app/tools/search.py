@@ -163,6 +163,7 @@ def _build_baidu_qianfan_request(idea: str) -> tuple[str, dict[str, str], dict]:
         "enable_deep_search": True,
         "enable_followup_query": False,
         "enable_corner_markers": False,
+        "enable_processing_state": True,
         "temperature": 0.2,
         "top_p": 0.7,
         "stream": True,
@@ -207,6 +208,7 @@ async def search_market_context(
         in_think = False
         thinking_buffer = ""
         last_thinking_stage = ""
+        last_processing_state = ""
 
         timeout = httpx.Timeout(120.0, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -228,14 +230,38 @@ async def search_market_context(
                     })
 
                 async for line in resp.aiter_lines():
-                    if not line.startswith("data: ") or line == "data: [DONE]":
+                    if line == "data: [DONE]":
+                        break
+                    if not line.startswith("data: "):
                         continue
 
                     try:
                         data = json.loads(line[6:])
-                        token = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        choices = data.get("choices") or [{}]
+                        choice = choices[0] if isinstance(choices, list) and choices else {}
+                        delta = choice.get("delta") if isinstance(choice, dict) else {}
+                        if not isinstance(delta, dict):
+                            continue
+                        processing_state = delta.get("processing_state") or {}
+                        processing_description = (
+                            str(processing_state.get("description") or "").strip()
+                            if isinstance(processing_state, dict)
+                            else ""
+                        )
+                        token = str(delta.get("content") or "")
                     except (json.JSONDecodeError, IndexError):
                         continue
+
+                    if (
+                        processing_description
+                        and processing_description != last_processing_state
+                        and on_event
+                    ):
+                        last_processing_state = processing_description
+                        await on_event({
+                            "type": "search_token",
+                            "token": f"{processing_description}\n",
+                        })
 
                     if not token:
                         continue

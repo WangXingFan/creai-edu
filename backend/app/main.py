@@ -15,6 +15,8 @@ load_dotenv(
 )
 
 from app.api.debate import router as debate_router
+from app.api.student import router as student_router
+from app.api.teacher import router as teacher_router
 from app.api.ws import router as ws_router
 from app.db.database import init_db
 
@@ -42,6 +44,8 @@ app.add_middleware(
 )
 
 app.include_router(debate_router, prefix="/api")
+app.include_router(teacher_router, prefix="/api")
+app.include_router(student_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
 
 

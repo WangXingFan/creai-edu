@@ -10,9 +10,9 @@ interface IdeaInputProps {
 }
 
 const EXAMPLE_IDEAS = [
-  "一个AI驱动的简历优化工具，帮应届生针对不同岗位自动调整简历",
-  "校园二手物品交易平台，支持拍照估价和同城即时配送",
-  "面向独居老人的智能健康监测手环，异常自动通知家属",
+  "面向高校学生的 AI 简历优化工具，针对不同岗位自动调整简历重点",
+  "校园二手物品交易平台，支持拍照估价、同城即时配送的学生创业项目",
+  "面向独居老人的智能健康监测手环，异常情况自动通知家属（学生民生方向 BP）",
 ];
 
 export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
@@ -60,7 +60,7 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
               handleSubmit();
             }
           }}
-          placeholder="描述你的创业想法，越详细越好..."
+          placeholder="粘贴你的双创课 BP 项目想法（越具体越好：目标用户、痛点、解决方案、商业模式）..."
           className={`
             w-full h-24 sm:h-32 px-4 py-4 bg-[var(--bg-1)] rounded-2xl
             text-text-primary placeholder-text-muted resize-none
@@ -117,7 +117,7 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
         ) : (
           <>
             <Zap className="h-4 w-4" />
-            <span>开始评估</span>
+            <span>开始 AI 答辩教练</span>
             <ArrowRight className="h-4 w-4" />
           </>
         )}
@@ -125,7 +125,7 @@ export default function IdeaInput({ onSubmit, loading }: IdeaInputProps) {
 
       {/* Example ideas */}
       <div className="space-y-2.5 pt-2">
-        <p className="text-xs text-text-muted font-medium">试试这些想法</p>
+        <p className="text-xs text-text-muted font-medium">学生 BP 示例（可一键填入）</p>
         <div className="flex flex-col gap-2">
           {EXAMPLE_IDEAS.map((example, i) => (
             <motion.button

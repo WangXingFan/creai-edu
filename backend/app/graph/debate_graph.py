@@ -1908,6 +1908,7 @@ async def run_debate(
     """
     state = _create_initial_state(idea, max_rounds)
     all_scores: list[dict[str, float]] = []
+    search_finished_emitted = False
 
     try:
         if on_event:
@@ -1937,13 +1938,15 @@ async def run_debate(
             search_result = await search_market_context(idea, on_event=on_event)
             state.search_context = search_result.content
             state.search_provider_label = search_result.provider_label
+        if on_event:
+            await on_event({
+                "type": "search_complete",
+                "content": state.search_context,
+                "search_provider_label": state.search_provider_label,
+                "has_result": bool(state.search_context),
+            })
+            search_finished_emitted = True
         if state.search_context:
-            if on_event:
-                await on_event({
-                    "type": "search_complete",
-                    "content": state.search_context,
-                    "search_provider_label": state.search_provider_label,
-                })
             evidence = EvidenceItem(
                 id=_make_id("evidence"),
                 type="market_context",
@@ -1961,6 +1964,13 @@ async def run_debate(
                 await on_event(evidence_event)
     except Exception as exc:
         logger.warning("Search phase failed, continuing without: %s", exc)
+        if on_event and not search_finished_emitted:
+            await on_event({
+                "type": "search_complete",
+                "content": "",
+                "search_provider_label": state.search_provider_label,
+                "has_result": False,
+            })
 
     await _emit_state_update(state, on_event)
 

@@ -138,7 +138,7 @@ export default function SharedReportPage() {
             className="flex items-center gap-1.5 text-text-muted hover:text-text-secondary transition-colors cursor-pointer text-sm"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Startup Arena
+            双创智辩
           </a>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/6 border border-accent/12 text-accent text-xs font-semibold">
             <Share2 className="h-3 w-3" />
@@ -317,8 +317,11 @@ export default function SharedReportPage() {
 
         <div className="text-center pt-4 pb-12">
           <a href="/" className="inline-flex items-center gap-2 px-6 py-2.5 text-sm btn-primary cursor-pointer">
-            <span>去 Startup Arena 继续评估</span>
+            <span>去「双创智辩」教练我的下一个 BP</span>
           </a>
+          <p className="mt-4 text-[10px] text-text-muted leading-relaxed max-w-md mx-auto">
+            ⚠ 本报告由生成式人工智能（AI）生成，仅作为高校双创课程教学参考，不构成投资建议
+          </p>
         </div>
       </div>
     </div>

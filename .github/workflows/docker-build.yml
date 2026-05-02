@@ -67,5 +67,8 @@ jobs:
         with:
           context: ./frontend
           push: true
+          build-args: |
+            BACKEND_URL=http://backend:8000
+            NEXT_PUBLIC_WS_URL=
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

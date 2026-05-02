@@ -18,6 +18,20 @@ class DebateStatus(str, PyEnum):
     FAILED = "failed"
 
 
+class Class(Base):
+    """A teacher-managed class. Students submit BPs via the class code."""
+
+    __tablename__ = "classes"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    code = Column(String(8), unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    teacher_name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
 class Debate(Base):
     __tablename__ = "debates"
 
@@ -54,3 +68,8 @@ class Debate(Base):
 
     # Whether this debate's cache is enabled for demo replay
     cache_enabled = Column(Boolean, default=False, nullable=False)
+
+    # ---- 双创课堂场景：班级与学生归属（均可空，向后兼容） ----
+    class_id = Column(String, nullable=True, index=True)
+    student_name = Column(String, nullable=True)
+    student_id = Column(String, nullable=True)

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_session
 from app.graph.debate_graph import _get_llm
-from app.models.debate import Debate, DebateStatus
+from app.models.debate import Class, Debate, DebateStatus
 from app.models.schemas import (
     DebateListResponse,
     DebateResponse,
@@ -46,11 +46,36 @@ async def start_debate(
     request: DebateStartRequest,
     session: AsyncSession = Depends(get_session),
 ):
-    """Submit a startup idea and create a new debate session."""
+    """Submit a startup idea and create a new debate session.
+
+    Optionally associates the submission with a class (双创课堂 scenario).
+    The class_id is validated against an existing active class; invalid
+    or inactive class IDs are rejected to prevent forged associations.
+    """
+    class_id: str | None = None
+    student_name: str | None = None
+    student_id: str | None = None
+
+    if request.class_id:
+        cls_result = await session.execute(
+            select(Class).where(Class.id == request.class_id)
+        )
+        cls = cls_result.scalar_one_or_none()
+        if not cls:
+            raise HTTPException(status_code=400, detail="Invalid class_id.")
+        if not cls.is_active:
+            raise HTTPException(status_code=400, detail="Class is no longer active.")
+        class_id = cls.id
+        student_name = (request.student_name or "").strip() or None
+        student_id = (request.student_id or "").strip() or None
+
     debate = Debate(
         idea=request.idea,
         max_rounds=request.max_rounds,
         status=DebateStatus.PENDING,
+        class_id=class_id,
+        student_name=student_name,
+        student_id=student_id,
     )
     session.add(debate)
     await session.commit()

@@ -51,6 +51,15 @@ const markdownComponents: Components = {
 interface MarkdownContentProps {
   children: string;
   className?: string;
+  /**
+   * Whether to render an "AI 生成" badge alongside the rendered content.
+   * Required by 《生成式人工智能服务管理暂行办法》 for visible AI-generated
+   * text. Defaults to false so call sites can opt-in (e.g. judge speeches,
+   * round summaries, final report).
+   */
+  aiGenerated?: boolean;
+  /** Position of the AI 生成 badge. Defaults to "footer". */
+  aiBadgePosition?: "header" | "footer";
 }
 
 function normalizeMarkdownSource(content: string): string {
@@ -62,15 +71,41 @@ function normalizeMarkdownSource(content: string): string {
     );
 }
 
+function AiBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent border border-accent/15",
+        className,
+      )}
+      title="本段内容由生成式人工智能（AI）生成，依《生成式人工智能服务管理暂行办法》进行标识"
+    >
+      AI 生成
+    </span>
+  );
+}
+
 export default function MarkdownContent({
   children,
   className,
+  aiGenerated = false,
+  aiBadgePosition = "footer",
 }: MarkdownContentProps) {
   return (
     <div className={clsx("text-[13px] leading-[1.7] text-text-secondary break-words", className)}>
+      {aiGenerated && aiBadgePosition === "header" && (
+        <div className="mb-1.5">
+          <AiBadge />
+        </div>
+      )}
       <ReactMarkdown components={markdownComponents}>
         {normalizeMarkdownSource(children)}
       </ReactMarkdown>
+      {aiGenerated && aiBadgePosition === "footer" && (
+        <div className="mt-2 flex justify-end">
+          <AiBadge />
+        </div>
+      )}
     </div>
   );
 }

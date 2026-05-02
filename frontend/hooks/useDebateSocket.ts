@@ -106,6 +106,7 @@ interface DebateEvent {
   final_scores?: Record<string, number>;
   message?: string;
   search_provider_label?: string;
+  has_result?: boolean;
   task?: DebateTaskPayload | null;
   tool?: DebateToolPayload;
   tool_result?: DebateToolPayload;
@@ -282,6 +283,7 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
   const [searchResult, setSearchResult] = useState<string | null>(null);
   const [searchProviderLabel, setSearchProviderLabel] = useState("联网搜索");
   const wsRef = useRef<WebSocket | null>(null);
+  const searchCompletedRef = useRef(false);
   const streamingRef = useRef<Map<string, string>>(new Map());
   const statusRef = useRef<UseDebateSocketReturn["status"]>("connecting");
   const reconnectAttemptRef = useRef(0);
@@ -290,6 +292,7 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
   const handleEvent = useCallback((event: DebateEvent) => {
     switch (event.type) {
       case "search_start":
+        searchCompletedRef.current = false;
         statusRef.current = "searching";
         setStatus("searching");
         setSearchResult("");
@@ -299,13 +302,14 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         break;
 
       case "search_token":
-        if (event.token) {
+        if (event.token && !searchCompletedRef.current) {
           setSearchResult((prev) => (prev ?? "") + event.token);
         }
         break;
 
       case "search_complete":
-        setSearchResult(event.content ?? null);
+        searchCompletedRef.current = true;
+        setSearchResult(event.content?.trim() ? event.content : null);
         if (event.search_provider_label) {
           setSearchProviderLabel(event.search_provider_label);
         }
@@ -335,6 +339,10 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         break;
 
       case "round_start":
+        if (!searchCompletedRef.current) {
+          searchCompletedRef.current = true;
+          setSearchResult(null);
+        }
         setCurrentRound(event.round ?? 0);
         setSummarizingRound(null);
         setIsGeneratingReport(false);
@@ -568,6 +576,10 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
         break;
 
       case "debate_complete":
+        if (!searchCompletedRef.current) {
+          searchCompletedRef.current = true;
+          setSearchResult(null);
+        }
         setSummarizingRound(null);
         setIsGeneratingReport(false);
         setPendingTool(null);

@@ -187,12 +187,12 @@ export default function ReportPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.24em] text-text-muted font-semibold mb-2">
-                    Startup Arena
+                    双创智辩 · CreAI Edu
                   </p>
                   <p className="text-xs text-text-muted">{formatBeijingTime(report.completed_at)}</p>
                 </div>
                 <div className="px-3 py-1.5 rounded-full bg-accent/8 border border-accent/15 text-accent text-xs font-semibold">
-                  创业评估分享图
+                  双创课 BP 评估分享图 · AI 生成
                 </div>
               </div>
 
@@ -335,11 +335,33 @@ export default function ReportPage() {
                   </div>
                 )}
               </div>
+
+              {/* AI generation disclaimer footer for PNG export */}
+              <div className="mt-8 rounded-2xl border border-border bg-surface-2 px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 inline-flex items-center justify-center rounded-full bg-accent/10 px-3 py-1.5 text-[11px] font-bold text-accent">
+                    AI 生成
+                  </div>
+                  <p className="text-[12px] leading-6 text-text-secondary">
+                    本报告由「双创智辩 · CreAI Edu」生成式人工智能工具产出，由国产大模型 DeepSeek / GLM / Qwen / Kimi / 文心 协同生成。仅作为高校创新创业教育（双创课）课堂教学参考，不构成投资建议。教学使用须经教师人工核验，遵守《生成式人工智能服务管理暂行办法》。
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
+          {/* On-screen AI 生成 banner */}
+          <div className="rounded-2xl border border-accent/20 bg-accent/[0.04] px-4 py-3 flex items-start gap-3">
+            <div className="shrink-0 inline-flex items-center justify-center rounded-full bg-accent/12 px-2.5 py-1 text-[10px] font-bold text-accent">
+              AI 生成
+            </div>
+            <p className="text-[12px] leading-6 text-text-secondary">
+              本评估报告由「双创智辩」多智能体（国产大模型）协同生成，作为双创课堂教学参考。请教师在引入课堂使用前进行人工核验。
+            </p>
+          </div>
+
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -569,6 +591,21 @@ export default function ReportPage() {
         >
           <div className="min-h-screen bg-surface-0 p-8">
             <div className="rounded-[28px] border border-border bg-[var(--bg-1)] p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] space-y-8">
+          {/* PDF brand + AI 生成 header band */}
+          <div
+            className="flex items-center justify-between mb-2 pb-4 border-b border-border"
+            data-export-block="true"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-text-muted font-semibold mb-1">
+                双创智辩 · CreAI Edu
+              </p>
+              <p className="text-[12px] text-text-secondary">高校双创课堂多智能体答辩教练 · 评估报告</p>
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-[11px] font-bold text-accent border border-accent/20">
+              AI 生成
+            </div>
+          </div>
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -757,6 +794,21 @@ export default function ReportPage() {
               </div>
             </motion.div>
           )}
+
+          {/* PDF AI generation footer disclaimer */}
+          <div
+            className="mt-8 rounded-2xl border border-border bg-surface-2 px-5 py-4"
+            data-export-block="true"
+          >
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 inline-flex items-center justify-center rounded-full bg-accent/10 px-3 py-1.5 text-[11px] font-bold text-accent">
+                AI 生成
+              </div>
+              <p className="text-[12px] leading-6 text-text-secondary">
+                本报告由「双创智辩 · CreAI Edu」生成式人工智能工具产出，由国产大模型 DeepSeek / GLM / Qwen / Kimi / 文心 协同生成。仅作为高校创新创业教育（双创课）课堂教学参考，不构成投资建议。教师在用于课堂评价前须进行人工核验，遵守《生成式人工智能服务管理暂行办法》。
+              </p>
+            </div>
+          </div>
         </div>
           </div>
         </div>

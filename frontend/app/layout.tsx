@@ -3,9 +3,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Startup Arena - AI 创业评估",
+  title: "双创智辩 · CreAI Edu — 高校双创课堂 AI 答辩教练",
   description:
-    "多 Agent 辩论式创业想法评估系统，从商业、技术、用户、竞争四大维度深度分析",
+    "面向高校创新创业教育（双创课）的多智能体答辩与评估教学工具，由国产大模型驱动，为学生 BP 提供市场、技术、用户、竞争四维度教练式反馈。所有 AI 生成内容均依规标注。",
 };
 
 const themeScript = `

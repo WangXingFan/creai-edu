@@ -102,7 +102,7 @@ export default function DebatePage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <h1 className="text-sm font-display font-bold gradient-text">
-            Startup Arena
+            双创智辩
           </h1>
         </div>
 
@@ -334,6 +334,15 @@ export default function DebatePage() {
                   </span>
                 </div>
               )}
+
+              <div className="mt-2 flex justify-end">
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent border border-accent/15"
+                  title="本轮小结由生成式人工智能（AI）生成"
+                >
+                  AI 生成
+                </span>
+              </div>
             </motion.div>
           ))}
 

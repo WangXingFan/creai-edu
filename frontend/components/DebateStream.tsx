@@ -277,7 +277,11 @@ const MessageCard = memo(function MessageCard({ msg }: { msg: DebateMessage }) {
               className={isCollapsed ? "overflow-hidden" : undefined}
               style={isCollapsed ? { maxHeight: "15rem" } : undefined}
             >
-              <MarkdownContent className={msg.isStreaming ? "typing-cursor" : undefined}>
+              <MarkdownContent
+                className={msg.isStreaming ? "typing-cursor" : undefined}
+                aiGenerated={!msg.isStreaming}
+                aiBadgePosition="footer"
+              >
                 {displayContent}
               </MarkdownContent>
             </div>
