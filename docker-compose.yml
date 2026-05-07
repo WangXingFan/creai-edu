@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/wangxingfan/startup-arena-backend:latest
+    image: ghcr.io/wangxingfan/creai-backend:latest
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     env_file:
@@ -15,7 +15,7 @@ services:
       retries: 3
 
   frontend:
-    image: ghcr.io/wangxingfan/startup-arena-frontend:latest
+    image: ghcr.io/wangxingfan/creai-frontend:latest
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
