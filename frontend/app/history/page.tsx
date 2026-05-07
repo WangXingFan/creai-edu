@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   Trash2,
   X,
   Database,
+  Play,
 } from "lucide-react";
 import { formatBeijingTime } from "@/lib/datetime";
 import { SkeletonCard } from "@/components/Skeleton";
@@ -32,11 +34,13 @@ interface DebateItem {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
   const [debates, setDebates] = useState<DebateItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [togglingCacheId, setTogglingCacheId] = useState<string | null>(null);
+  const [replayingCacheId, setReplayingCacheId] = useState<string | null>(null);
   const [cacheNotice, setCacheNotice] = useState<{
     type: "success" | "error";
     message: string;
@@ -69,6 +73,12 @@ export default function HistoryPage() {
       return "只有已完成的评估才能加入缓存";
     }
     return "缓存操作失败，请稍后重试";
+  };
+
+  const handleReplayFromCache = (debate: DebateItem) => {
+    setReplayingCacheId(debate.id);
+    setCacheNotice(null);
+    router.push(`/debate/${debate.id}?replay=1`);
   };
 
   const handleToggleCache = async (debate: DebateItem) => {
@@ -289,11 +299,11 @@ export default function HistoryPage() {
                       )}
                     </AnimatePresence>
 
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       {/* Content (clickable) */}
                       <a
                         href={debate.status === "completed" ? `/report/${debate.id}` : `/debate/${debate.id}`}
-                        className="flex-1 min-w-0 cursor-pointer"
+                        className="min-w-0 cursor-pointer sm:flex-1"
                       >
                         <p className="text-sm text-text-primary font-medium truncate group-hover:text-accent transition-colors">
                           {debate.idea}
@@ -309,7 +319,7 @@ export default function HistoryPage() {
                       </a>
 
                       {/* Right side: badge + score + cache + delete + arrow */}
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="flex w-full flex-wrap items-center justify-end gap-2 shrink-0 sm:w-auto sm:gap-2.5">
                         {getStatusBadge(debate.status)}
                         {score !== null && (
                           <span className={`text-xl font-display font-extrabold tabular-nums ${scoreClass}`}>
@@ -325,36 +335,63 @@ export default function HistoryPage() {
                           )}
                         {debate.status === "completed" &&
                           debate.has_event_data !== false && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleToggleCache(debate);
-                            }}
-                            disabled={togglingCacheId === debate.id}
-                            aria-pressed={debate.has_cache}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
-                              debate.has_cache
-                                ? "border-accent/20 bg-accent/10 text-accent hover:bg-accent/15"
-                                : "border-border bg-surface-2 text-text-secondary hover:border-accent/20 hover:bg-accent/6 hover:text-accent"
-                            }`}
-                            title={debate.has_cache ? "取消缓存" : "存为缓存"}
-                          >
-                            {togglingCacheId === debate.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Database className="h-3.5 w-3.5" />
-                            )}
-                            <span>
-                              {togglingCacheId === debate.id
-                                ? debate.has_cache
-                                  ? "取消中"
-                                  : "保存中"
-                                : debate.has_cache
-                                  ? "已缓存"
-                                  : "存为缓存"}
-                            </span>
-                          </button>
+                            <>
+                              {debate.has_cache && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleReplayFromCache(debate);
+                                  }}
+                                  disabled={replayingCacheId === debate.id}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent px-2.5 py-1 text-[11px] font-semibold text-white transition-all hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+                                  title="快速回放"
+                                  aria-label={`快速回放：${debate.idea}`}
+                                >
+                                  {replayingCacheId === debate.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Play className="h-3.5 w-3.5 fill-current" />
+                                  )}
+                                  <span className="hidden sm:inline">
+                                    {replayingCacheId === debate.id ? "启动中" : "快速回放"}
+                                  </span>
+                                  <span className="sm:hidden">
+                                    {replayingCacheId === debate.id ? "启动" : "回放"}
+                                  </span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleToggleCache(debate);
+                                }}
+                                disabled={togglingCacheId === debate.id}
+                                aria-pressed={debate.has_cache}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                                  debate.has_cache
+                                    ? "border-accent/20 bg-accent/10 text-accent hover:bg-accent/15"
+                                    : "border-border bg-surface-2 text-text-secondary hover:border-accent/20 hover:bg-accent/6 hover:text-accent"
+                                }`}
+                                title={debate.has_cache ? "取消缓存" : "存为缓存"}
+                              >
+                                {togglingCacheId === debate.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Database className="h-3.5 w-3.5" />
+                                )}
+                                <span>
+                                  {togglingCacheId === debate.id
+                                    ? debate.has_cache
+                                      ? "取消中"
+                                      : "保存中"
+                                    : debate.has_cache
+                                      ? "取消缓存"
+                                      : "存为缓存"}
+                                </span>
+                              </button>
+                            </>
                           )}
                         <button
                           onClick={(e) => {
@@ -368,7 +405,7 @@ export default function HistoryPage() {
                         </button>
                         <a
                           href={debate.status === "completed" ? `/report/${debate.id}` : `/debate/${debate.id}`}
-                          className="cursor-pointer"
+                          className="hidden cursor-pointer sm:block"
                         >
                           <ChevronRight className="h-4 w-4 text-text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
                         </a>

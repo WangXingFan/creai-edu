@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -27,7 +27,9 @@ import MarkdownContent from "@/components/MarkdownContent";
 
 export default function DebatePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const debateId = params.id as string;
+  const replayFromCache = searchParams.get("replay") === "1";
   const streamEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
@@ -54,7 +56,7 @@ export default function DebatePage() {
     searchResult,
     searchProviderLabel,
     sendMessage,
-  } = useDebateSocket(debateId);
+  } = useDebateSocket(debateId, replayFromCache);
 
   const pendingToolStatusText =
     pendingTool?.name === "market_search"

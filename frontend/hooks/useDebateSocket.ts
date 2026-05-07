@@ -261,7 +261,10 @@ function toTimelineEntry(event: DebateEvent): DebateTimelineEntry {
   };
 }
 
-export function useDebateSocket(debateId: string): UseDebateSocketReturn {
+export function useDebateSocket(
+  debateId: string,
+  replayFromCache = false
+): UseDebateSocketReturn {
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [timeline, setTimeline] = useState<DebateTimelineEntry[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -635,7 +638,8 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
           ? `${wsProtocol}//${window.location.hostname}:8000`
           : `${wsProtocol}//${window.location.host}`
         : "ws://localhost:8000");
-    const wsUrl = `${wsHost}/ws/debate/${debateId}`;
+    const replayQuery = replayFromCache ? "?replay=1" : "";
+    const wsUrl = `${wsHost}/ws/debate/${debateId}${replayQuery}`;
 
     let disposed = false;
 
@@ -714,7 +718,7 @@ export function useDebateSocket(debateId: string): UseDebateSocketReturn {
       streamingRef.current.clear();
       wsRef.current?.close();
     };
-  }, [debateId, handleEvent]);
+  }, [debateId, handleEvent, replayFromCache]);
 
   return {
     messages,

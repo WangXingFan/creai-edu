@@ -124,6 +124,25 @@ def _build_complete_event_payload(
     }
 
 
+def _build_debate_replay_bundle(debate: Debate) -> dict[str, Any] | None:
+    cache = debate.event_cache
+    if not isinstance(cache, list) or len(cache) == 0:
+        return None
+
+    return {
+        "source_debate_id": debate.id,
+        "events": cache,
+        "report": debate.report or {},
+        "final_scores": debate.final_scores or {},
+        "action_trace": debate.action_trace or [],
+        "evidence_board": debate.evidence_board or [],
+        "agent_states": debate.agent_states or {},
+        "halt_reason": debate.halt_reason,
+        "step_count": debate.step_count or 0,
+        "current_round": debate.current_round or 0,
+    }
+
+
 class ConnectionManager:
     """Manage active WebSocket connections per debate."""
 
@@ -244,8 +263,32 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
             })
 
             status = debate.status
+            replay_requested = websocket.query_params.get("replay") in {"1", "true", "yes"}
+            replay_started = False
 
-            if status == DebateStatus.PENDING:
+            if replay_requested:
+                replay_bundle = _build_debate_replay_bundle(debate)
+                if (
+                    status != DebateStatus.COMPLETED
+                    or not debate.cache_enabled
+                    or replay_bundle is None
+                ):
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "This debate does not have an enabled replay cache.",
+                    })
+                    await websocket.close()
+                    return
+
+                manager.clear_runtime_cache(debate_id)
+                task = asyncio.create_task(
+                    _replay_cached_events(debate_id, replay_bundle, persist=False),
+                    name=f"debate-ephemeral-replay-{debate_id}",
+                )
+                manager.register_background_task(debate_id, task)
+                replay_started = True
+
+            if not replay_started and status == DebateStatus.PENDING:
                 # Atomically transition once to avoid starting the same debate twice.
                 did_start = await _try_mark_debate_in_progress(session, debate_id)
                 if did_start:
@@ -266,7 +309,7 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
                     await session.refresh(debate)
                     status = debate.status
 
-            if status == DebateStatus.COMPLETED:
+            if not replay_started and status == DebateStatus.COMPLETED:
                 complete_payload = _build_complete_event_payload(
                     debate.event_cache if isinstance(debate.event_cache, list) else None,
                     fallback_report=debate.report or {},
@@ -294,7 +337,7 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
                     await session.commit()
 
                 await websocket.send_json(complete_payload)
-            elif status == DebateStatus.FAILED:
+            elif not replay_started and status == DebateStatus.FAILED:
                 # Debate already failed, tell client and close
                 await websocket.send_json({
                     "type": "error",
@@ -303,7 +346,7 @@ async def debate_websocket(websocket: WebSocket, debate_id: str):
                 await websocket.close()
                 return
             # If IN_PROGRESS, notify client that debate is already running
-            elif status == DebateStatus.IN_PROGRESS:
+            elif not replay_started and status == DebateStatus.IN_PROGRESS:
                 replay_events, latest_state = manager.get_replay_bundle(debate_id)
                 if replay_events:
                     for event in replay_events:
@@ -457,7 +500,12 @@ async def _find_cached_debate(idea: str) -> dict[str, Any] | None:
     return None
 
 
-async def _replay_cached_events(debate_id: str, replay_bundle: dict[str, Any]):
+async def _replay_cached_events(
+    debate_id: str,
+    replay_bundle: dict[str, Any],
+    *,
+    persist: bool = True,
+):
     """Replay a cached event stream with realistic timing delays.
 
     The front-end receives the same events as a real run, so it renders
@@ -498,38 +546,40 @@ async def _replay_cached_events(debate_id: str, replay_bundle: dict[str, Any]):
             manager.record_event(debate_id, complete_payload)
             await manager.broadcast(debate_id, complete_payload)
 
-        async with async_session() as session:
-            db_result = await session.execute(
-                select(Debate).where(Debate.id == debate_id)
-            )
-            debate = db_result.scalar_one_or_none()
-            if debate:
-                debate.status = DebateStatus.COMPLETED
-                debate.completed_at = datetime.now(UTC)
-                debate.report = complete_payload.get("report", {})
-                debate.final_scores = complete_payload.get("final_scores", {})
-                debate.action_trace = complete_payload.get("action_trace", [])
-                debate.evidence_board = complete_payload.get("evidence_board", [])
-                debate.agent_states = complete_payload.get("agent_states", {})
-                debate.halt_reason = complete_payload.get("halt_reason")
-                debate.step_count = complete_payload.get("step_count", 0)
-                debate.current_round = complete_payload.get("current_round", 0)
-                debate.event_cache = persisted_events
-                await session.commit()
+        if persist:
+            async with async_session() as session:
+                db_result = await session.execute(
+                    select(Debate).where(Debate.id == debate_id)
+                )
+                debate = db_result.scalar_one_or_none()
+                if debate:
+                    debate.status = DebateStatus.COMPLETED
+                    debate.completed_at = datetime.now(UTC)
+                    debate.report = complete_payload.get("report", {})
+                    debate.final_scores = complete_payload.get("final_scores", {})
+                    debate.action_trace = complete_payload.get("action_trace", [])
+                    debate.evidence_board = complete_payload.get("evidence_board", [])
+                    debate.agent_states = complete_payload.get("agent_states", {})
+                    debate.halt_reason = complete_payload.get("halt_reason")
+                    debate.step_count = complete_payload.get("step_count", 0)
+                    debate.current_round = complete_payload.get("current_round", 0)
+                    debate.event_cache = persisted_events
+                    await session.commit()
 
         manager.clear_runtime_cache(debate_id)
         logger.info("Cache replay finished for debate %s", debate_id)
 
     except Exception:
         logger.exception("Cache replay failed for debate %s", debate_id)
-        async with async_session() as session:
-            db_result = await session.execute(
-                select(Debate).where(Debate.id == debate_id)
-            )
-            debate = db_result.scalar_one_or_none()
-            if debate:
-                debate.status = DebateStatus.FAILED
-                await session.commit()
+        if persist:
+            async with async_session() as session:
+                db_result = await session.execute(
+                    select(Debate).where(Debate.id == debate_id)
+                )
+                debate = db_result.scalar_one_or_none()
+                if debate:
+                    debate.status = DebateStatus.FAILED
+                    await session.commit()
         error_event = {
             "type": "error",
             "message": "Debate replay failed.",
